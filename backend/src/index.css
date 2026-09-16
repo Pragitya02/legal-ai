@@ -1,0 +1,477 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@500;600;700&display=swap');
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+}
+
+:root {
+  --bg: #F7F3EA;
+  --bg-secondary: #EEE8DB;
+  --bg-card: #FFFCF5;
+  --bg-glass: rgba(255,252,245,0.86);
+  --text: #18202B;
+  --text-muted: #6B7280;
+  --text-subtle: #9A9387;
+  --border: #D8D0C1;
+  --border-subtle: rgba(24,32,43,0.07);
+  --blue: #0F2747;
+  --blue-dark: #183A63;
+  --blue-light: #E7D6A4;
+  --blue-subtle: #F3EBD8;
+  --emerald: #9A7620;
+  --emerald-dark: #755914;
+  --emerald-light: #E7D6A4;
+  --emerald-subtle: #F8F1DE;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-blue: 0 8px 32px rgba(154,118,32,0.18);
+  --shadow-emerald: 0 8px 32px rgba(154,118,32,0.18);
+  --radius: 16px;
+  --radius-sm: 8px;
+  --radius-lg: 24px;
+}
+
+.dark {
+  --bg: #0B1625;
+  --bg-secondary: #101F33;
+  --bg-card: rgba(15,31,51,0.86);
+  --bg-glass: rgba(15,31,51,0.72);
+  --text: #F1F5F9;
+  --text-muted: #94A3B8;
+  --text-subtle: #475569;
+  --border: rgba(255,255,255,0.08);
+  --border-subtle: rgba(255,255,255,0.04);
+  --blue: #D5B65A;
+  --blue-dark: #B89432;
+  --blue-light: rgba(213,182,90,0.18);
+  --blue-subtle: rgba(213,182,90,0.10);
+  --emerald: #D5B65A;
+  --emerald-dark: #B89432;
+  --emerald-light: rgba(213,182,90,0.18);
+  --emerald-subtle: rgba(213,182,90,0.10);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.2);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-blue: 0 8px 32px rgba(213,182,90,0.20);
+  --shadow-emerald: 0 8px 32px rgba(213,182,90,0.20);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Glassmorphism card */
+.glass-card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+
+/* Animated gradient background */
+.hero-gradient {
+  background:
+    radial-gradient(ellipse at 15% 30%, rgba(154,118,32,0.08) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 70%, rgba(15,39,71,0.08) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 0%, rgba(201,162,39,0.06) 0%, transparent 40%),
+    var(--bg);
+}
+
+.dark .hero-gradient {
+  background:
+    radial-gradient(ellipse at 15% 30%, rgba(201,162,39,0.08) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 70%, rgba(15,39,71,0.08) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 0%, rgba(201,162,39,0.07) 0%, transparent 40%),
+    var(--bg);
+}
+
+.mesh-gradient {
+  background:
+    radial-gradient(circle at 20% 50%, rgba(154,118,32,0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(15,39,71,0.05) 0%, transparent 50%),
+    var(--bg);
+}
+
+/* Blue gradient button */
+.btn-primary {
+  background: linear-gradient(135deg, var(--blue) 0%, #183A63 100%);
+  color: white;
+  box-shadow: var(--shadow-blue);
+  transition: all 0.2s ease;
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--blue-dark) 0%, #102B4A 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 40px rgba(15,39,71,0.25);
+}
+
+/* Emerald gradient button */
+.btn-emerald {
+  background: linear-gradient(135deg, var(--emerald) 0%, #7A5B14 100%);
+  color: white;
+  box-shadow: var(--shadow-emerald);
+  transition: all 0.2s ease;
+}
+.btn-emerald:hover {
+  background: linear-gradient(135deg, var(--emerald-dark) 0%, #5E450F 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 40px rgba(154,118,32,0.25);
+}
+
+/* Ghost button */
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  transition: all 0.2s ease;
+}
+.btn-ghost:hover {
+  background: var(--bg-secondary);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+/* Card */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-lg);
+}
+.card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgba(154,118,32,0.18);
+}
+
+/* Feature card gradient border */
+.feature-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+.feature-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(154,118,32,0.035) 0%, rgba(15,39,71,0.035) 100%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.feature-card:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(154,118,32,0.22);
+  transform: translateY(-3px);
+}
+.feature-card:hover::before { opacity: 1; }
+
+/* Input */
+.input {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.9rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  outline: none;
+}
+.input::placeholder { color: var(--text-subtle); }
+.input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+}
+.dark .input { background: rgba(255,255,255,0.04); }
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Sidebar nav item */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+  cursor: pointer;
+  text-decoration: none;
+  width: 100%;
+}
+.nav-item:hover {
+  background: var(--bg-secondary);
+  color: var(--text);
+}
+.nav-item.active {
+  background: var(--blue-subtle);
+  color: var(--blue);
+}
+.dark .nav-item.active {
+  background: var(--blue-subtle);
+  color: var(--blue);
+}
+
+/* Step line */
+.step-line::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  width: 60px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--blue), transparent);
+  transform: translateY(-50%);
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+.float-animation { animation: float 4s ease-in-out infinite; }
+
+/* Pulse glow */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(37,99,235,0.3); }
+  50% { box-shadow: 0 0 40px rgba(37,99,235,0.5); }
+}
+.pulse-glow { animation: pulse-glow 2.5s ease-in-out infinite; }
+
+/* Chat bubble */
+.chat-bubble-ai {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px 16px 16px 16px;
+  box-shadow: var(--shadow-sm);
+}
+.chat-bubble-user {
+  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+  color: white;
+  border-radius: 16px 4px 16px 16px;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Section title */
+.section-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  background: var(--blue-subtle);
+  color: var(--blue);
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid var(--blue-light);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--blue) 0%, #9A7620 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Stat number */
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--blue), var(--emerald));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Timeline dot */
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--blue);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px var(--blue-subtle);
+}
+
+/* Avatar */
+.avatar {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, var(--blue), var(--emerald));
+  color: white;
+  flex-shrink: 0;
+}
+
+/* Pricing card */
+.pricing-popular {
+  border: 2px solid var(--blue);
+  box-shadow: var(--shadow-blue);
+  position: relative;
+}
+
+/* Rating stars */
+.stars { color: #F59E0B; }
+
+/* Transition for page */
+.page-enter {
+  animation: pageIn 0.3s ease forwards;
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* =========================================================
+   NYAYA AI — LEGAL DESIGN SYSTEM
+   ========================================================= */
+
+body {
+  background-image: radial-gradient(circle at 10% 0%, rgba(154,118,32,0.045), transparent 32%),
+                    radial-gradient(circle at 90% 10%, rgba(15,39,71,0.045), transparent 34%);
+}
+
+h1, h2, h3, h4, .legal-heading {
+  font-family: var(--font-serif);
+  letter-spacing: -0.02em;
+}
+
+.btn-primary, .btn-emerald {
+  border: 1px solid rgba(201,162,39,0.35);
+  letter-spacing: 0.01em;
+}
+
+.card, .feature-card, .glass-card {
+  border-color: rgba(160,145,116,0.35);
+}
+
+.legal-accent {
+  color: #9A7620;
+}
+
+.legal-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #C9A227, transparent);
+}
+
+/* =========================================================
+   NYAYA AI — FINAL LEGAL POLISH
+   ========================================================= */
+
+::selection {
+  background: #E7D6A4;
+  color: #0F2747;
+}
+
+button {
+  font-family: var(--font-sans);
+}
+
+input, textarea, select {
+  font-family: var(--font-sans);
+}
+
+.legal-heading {
+  font-family: var(--font-serif);
+}
+
+.legal-gold {
+  color: #9A7620;
+}
+
+.legal-gold-bg {
+  background: #F3EBD8;
+  color: #0F2747;
+}
+
+.legal-rule {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #C9A227,
+    transparent
+  );
+}
+
+.card:hover,
+.feature-card:hover {
+  border-color: rgba(154,118,32,0.28);
+}
+
+.input:focus {
+  border-color: #9A7620;
+  box-shadow: 0 0 0 3px rgba(154,118,32,0.12);
+}
+
+.dark .input:focus {
+  border-color: #D5B65A;
+  box-shadow: 0 0 0 3px rgba(213,182,90,0.12);
+}

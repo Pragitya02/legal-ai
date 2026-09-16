@@ -1,0 +1,10 @@
+{
+  "description": "Provides instant AI-driven legal guidance and connects users with recommended advocates by analyzing case details and uploaded documents.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
