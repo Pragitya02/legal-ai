@@ -112,6 +112,7 @@ const availabilityRoutes = require("./routes/availabilityRoutes");
 const meetingRoutes = require("./routes/meetingRoutes");
 const signalingRoutes = require("./routes/signalingRoutes");
 const researchRoutes = require("./routes/researchRoutes");
+const searchRoutes = require("./routes/searchRoutes");
 
 // =====================================================
 // MIDDLEWARE / AGENTS
@@ -407,6 +408,14 @@ app.use(
 app.use(
     "/api/research",
     researchRoutes
+);
+// -----------------------------------------------------
+// Global Content Search
+// -----------------------------------------------------
+
+app.use(
+    "/api/search",
+    searchRoutes
 );
 
 // =====================================================
