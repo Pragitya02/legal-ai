@@ -180,11 +180,11 @@ async function getConsultationParticipant(appointmentId, userId) {
     const [rows] = await db.query(
         `
         SELECT
-            id,
-            citizen_id,
-            lawyer_id,
-            status,
-            notes,
+            a.id,
+            a.citizen_id,
+            a.lawyer_id,
+            a.status,
+            a.notes,
             citizen.full_name AS citizen_name,
             advocate.full_name AS advocate_name
         FROM appointments a
