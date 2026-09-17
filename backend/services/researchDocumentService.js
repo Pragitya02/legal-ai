@@ -6,6 +6,30 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 /*
 |--------------------------------------------------------------------------
+| OPTIONAL LOCAL OCR
+|--------------------------------------------------------------------------
+|
+| Tesseract.js is used as a final OCR fallback for image files when the
+| configured vision APIs are unavailable. Install it with:
+|
+|   npm install tesseract.js
+|
+| The require is intentionally optional so the service does not crash on
+| deployments where Tesseract has not been installed yet.
+|
+*/
+let Tesseract = null;
+
+try {
+  Tesseract = require("tesseract.js");
+} catch (error) {
+  console.warn(
+    "TESSERACT.JS NOT INSTALLED - local OCR fallback is unavailable."
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
 | AI CLIENTS
 |--------------------------------------------------------------------------
 */
@@ -138,6 +162,7 @@ async function extractImageWithGroq(
     const completion =
       await groq.chat.completions.create({
         model:
+          process.env.GROQ_VISION_MODEL ||
           "meta-llama/llama-4-scout-17b-16e-instruct",
 
         messages: [
@@ -153,7 +178,13 @@ You are Nyaya AI's legal-document OCR and visual inspection assistant.
 
 Carefully inspect the uploaded legal document image.
 
-Extract only information that is actually visible and readable.
+FIRST:
+Perform OCR and transcribe as much readable text as possible.
+Preserve names, numbers, dates, section numbers, case numbers,
+addresses, headings, and paragraph content accurately.
+
+SECOND:
+Analyze the legal-document structure.
 
 Look for:
 
@@ -176,21 +207,37 @@ Look for:
 17. Handwritten marks
 18. Important missing or unclear information
 
-IMPORTANT ACCURACY RULES:
+Return:
+
+=== OCR EXTRACTED TEXT ===
+[all readable text]
+
+=== LEGAL DOCUMENT ANALYSIS ===
+[structured analysis]
+
+=== UNCLEAR / NOT READABLE ===
+[list only things that cannot be read]
+
+STRICT ACCURACY RULES:
 
 - Never invent text.
 - Never guess a number.
 - Never guess a name.
 - Never guess a date.
-- Never assume a signature exists.
-- Never assume a stamp or seal exists.
-- Only report a signature, stamp, or seal when it is actually visible.
-- If something is present but unreadable, say NOT CLEAR.
-- If something cannot be verified from the image, say NOT VERIFIABLE FROM THIS FILE.
-- Do not claim that this document was checked against a government, police, court, Bar Council, or other external database.
-- Preserve exact numbers and names whenever they are readable.
+- Never infer a legal section that is not visible.
+- Never claim a signature is genuine.
+- Never claim a stamp or seal is authentic.
+- Report a signature only if it is visibly present.
+- Report a stamp/seal only if visibly present.
+- If text is partially readable, preserve the readable portion and mark
+  the uncertain portion as NOT CLEAR.
+- If a field is not visible, say NOT VISIBLE IN THIS IMAGE.
+- Do not claim that this document was checked against a government,
+  police, court, Bar Council, or other external database.
+- Do not fabricate case facts.
 
-Return a structured plain-text extraction that can later be used by a legal research AI.
+This output will be stored and supplied to the legal research assistant
+for follow-up questions.
 `,
               },
 
@@ -209,13 +256,12 @@ Return a structured plain-text extraction that can later be used by a legal rese
       });
 
     return trimText(
-      completion?.choices?.[0]?.message
-        ?.content || ""
+      completion?.choices?.[0]?.message?.content || ""
     );
   } catch (error) {
     console.error(
-      "GROQ IMAGE ANALYSIS ERROR:",
-      error.message
+      "GROQ IMAGE OCR/ANALYSIS ERROR:",
+      error?.message || error
     );
 
     return "";
@@ -251,105 +297,244 @@ async function extractWithGeminiVision(
     return "";
   }
 
-  try {
-    const model =
-      gemini.getGenerativeModel({
-        model: "gemini-2.5-flash",
-      });
+  /*
+  |--------------------------------------------------------------------------
+  | MODEL SELECTION
+  |--------------------------------------------------------------------------
+  |
+  | GEMINI_VISION_MODEL can be configured on Render. The default is a
+  | multimodal Gemini model.
+  |
+  */
 
-    const result =
-      await model.generateContent([
-        {
-          inlineData: {
-            data:
-              buffer.toString("base64"),
+  const modelsToTry = [
+    process.env.GEMINI_VISION_MODEL || "gemini-2.5-flash",
+    "gemini-2.5-flash",
+  ].filter(
+    (value, index, array) =>
+      value && array.indexOf(value) === index
+  );
 
-            mimeType,
-          },
-        },
+  const prompt = `
+You are Nyaya AI's legal document OCR and visual analysis engine.
 
-        `
-You are Nyaya AI's legal document extraction and verification engine.
+The uploaded file is a legal document, case file, FIR, court order,
+judgment, notice, petition, application, affidavit, evidence document,
+or another legal record.
 
-Carefully inspect the uploaded legal document.
+Your FIRST priority is OCR / text extraction.
 
-Your job is to extract information that is actually present in the file.
+Read the entire uploaded document carefully and extract ALL text that
+is actually readable.
 
-Analyze both readable text and visible document structure.
+Preserve:
+- exact names
+- exact case numbers
+- exact FIR numbers
+- exact dates
+- exact section numbers
+- exact act names
+- exact court names
+- exact police-station names
+- headings
+- addresses
+- paragraph text
+- order numbers
+- page numbers
+- visible handwritten text
 
-Return a structured plain-text report containing:
+Then perform document analysis.
 
-1. DOCUMENT TYPE
-2. COURT / AUTHORITY
-3. CASE NUMBER
-4. FIR NUMBER
-5. POLICE STATION
-6. PARTIES / NAMES
-7. ADVOCATES
-8. IMPORTANT DATES
-9. LEGAL SECTIONS
-10. ACTS / PROVISIONS
-11. IMPORTANT FACTS
-12. ORDERS / DIRECTIONS
-13. PAGE NUMBERS
-14. LETTERHEAD
-15. SIGNATURES
-16. STAMPS
-17. SEALS
-18. HANDWRITTEN CONTENT
-19. OTHER IMPORTANT DOCUMENT ELEMENTS
-20. MISSING OR UNCLEAR INFORMATION
+Return exactly these sections:
+
+=== OCR EXTRACTED TEXT ===
+
+[transcribe all readable text from the document]
+
+=== DOCUMENT ANALYSIS ===
+
+Document Type:
+Court / Authority:
+Case Number:
+FIR Number:
+Police Station:
+Parties:
+Advocates:
+Important Dates:
+Legal Sections:
+Acts / Provisions:
+Important Facts:
+Orders / Directions:
+Page Numbers:
+Letterhead:
+Signatures:
+Stamps:
+Seals:
+Handwritten Content:
+Other Important Elements:
+
+=== UNCLEAR / MISSING INFORMATION ===
+
+[list information that is not readable or not visible]
 
 STRICT ACCURACY RULES:
 
-- Read the document carefully before answering.
-- Do not invent information.
-- Do not guess missing information.
-- Do not infer a case number from unrelated numbers.
-- Do not infer a person's name.
-- Do not infer dates.
-- Do not infer legal sections.
-- Do not claim a signature is genuine.
-- Do not claim a stamp or seal is authentic.
-- A visible signature may only be reported as a visible signature.
-- A visible stamp may only be reported as a visible stamp.
-- A visible seal may only be reported as a visible seal.
-- Do not claim that a signature, stamp, or seal belongs to a particular authority unless the document actually identifies it.
-- If text is unreadable, write NOT CLEAR.
-- If something cannot be visually verified from this file, write NOT VERIFIABLE FROM THIS FILE.
-- Do not claim to have checked a live court database, government database, police database, Bar Council database, or any other external source.
-- Preserve exact names, numbers, dates, and sections whenever they are readable.
+1. Never invent information.
+2. Never guess names.
+3. Never guess numbers.
+4. Never guess dates.
+5. Never infer legal sections.
+6. Never fill missing fields from general legal knowledge.
+7. If text is unreadable, write NOT CLEAR.
+8. If a field is not visible, write NOT VISIBLE IN THIS FILE.
+9. A visible signature may only be reported as a visible signature.
+10. A visible stamp may only be reported as a visible stamp.
+11. A visible seal may only be reported as a visible seal.
+12. Do not claim a signature, stamp, or seal is genuine or authentic.
+13. Do not claim that any authority has verified the document.
+14. Do not claim that you checked a live court, police, government,
+    Bar Council, DigiLocker, or other external database.
+15. Preserve exact text whenever readable.
+16. Do not silently correct spelling, names, dates, or case numbers.
+17. If the document contains multiple pages, inspect all pages supplied
+    to the model.
+18. Do not summarize instead of doing OCR. OCR comes first.
 
-This extraction will be stored and later used by an advocate-facing legal research assistant.
+The extracted text will be used by an advocate-facing legal research
+assistant. It must therefore remain faithful to the uploaded document.
+`;
 
-The assistant must be able to answer follow-up questions such as:
+  for (const modelName of modelsToTry) {
+    try {
+      console.log(
+        `GEMINI DOCUMENT VISION: trying model ${modelName}`
+      );
 
-"Does the document contain a case number?"
+      const model =
+        gemini.getGenerativeModel({
+          model: modelName,
+        });
 
-"Which sections are mentioned?"
+      const result =
+        await model.generateContent([
+          {
+            inlineData: {
+              data: buffer.toString("base64"),
+              mimeType,
+            },
+          },
+          prompt,
+        ]);
 
-"What is the date of the order?"
+      const text =
+        result?.response?.text?.() || "";
 
-"Is there a signature?"
+      const cleaned = trimText(text);
 
-"Is there a court seal?"
+      if (cleaned) {
+        console.log(
+          `GEMINI DOCUMENT VISION: successful with ${modelName}`
+        );
 
-"Which page contains the case number?"
+        return cleaned;
+      }
 
-"What information is missing?"
+      console.warn(
+        `GEMINI DOCUMENT VISION: ${modelName} returned empty output.`
+      );
+    } catch (error) {
+      console.error(
+        `GEMINI DOCUMENT VISION ERROR (${modelName}):`,
+        error?.message || error
+      );
+    }
+  }
 
-Only answer those questions from information actually available in this document.
-`,
-      ]);
+  return "";
+}
 
-    const text =
-      result?.response?.text?.() || "";
+/*
+|--------------------------------------------------------------------------
+| LOCAL TESSERACT OCR FALLBACK
+|--------------------------------------------------------------------------
+|
+| This path is deliberately used only after Gemini and Groq vision fail.
+| It is useful for photographed/scanned case documents where the image
+| contains readable text but no cloud vision model is configured.
+|
+*/
 
-    return trimText(text);
+async function extractImageWithTesseract(
+  buffer
+) {
+  if (!Tesseract) {
+    return "";
+  }
+
+  if (!buffer || !buffer.length) {
+    return "";
+  }
+
+  try {
+    console.log(
+      "LOCAL OCR: starting Tesseract OCR..."
+    );
+
+    const result =
+      await Tesseract.recognize(
+        buffer,
+        process.env.OCR_LANGUAGE || "eng",
+        {
+          logger: (info) => {
+            if (
+              info?.status === "recognizing text" &&
+              typeof info.progress === "number"
+            ) {
+              const percent =
+                Math.round(info.progress * 100);
+
+              if (percent % 20 === 0) {
+                console.log(
+                  `LOCAL OCR: ${percent}%`
+                );
+              }
+            }
+          },
+        }
+      );
+
+    const extracted =
+      trimText(
+        result?.data?.text || ""
+      );
+
+    if (extracted) {
+      console.log(
+        "LOCAL OCR: text extraction completed."
+      );
+
+      return `
+=== OCR EXTRACTED TEXT ===
+
+${extracted}
+
+=== OCR NOTE ===
+
+Text was extracted using local OCR. Visual legal elements such as
+signatures, stamps, seals, and document authenticity were not
+independently verified.
+`;
+    }
+
+    console.warn(
+      "LOCAL OCR: no readable text found."
+    );
+
+    return "";
   } catch (error) {
     console.error(
-      "GEMINI DOCUMENT ANALYSIS ERROR:",
-      error.message
+      "LOCAL TESSERACT OCR ERROR:",
+      error?.message || error
     );
 
     return "";
@@ -411,6 +596,32 @@ async function extractPdfDocument(
 
   /*
   |--------------------------------------------------------------------------
+  | GROQ PDF VISION FALLBACK
+  |--------------------------------------------------------------------------
+  |
+  | Some Groq vision deployments may accept document/PDF input while
+  | others may not. We therefore attempt it only after Gemini and keep
+  | normal PDF text extraction as the primary path.
+  |
+  */
+
+  if (!visualExtraction && groq) {
+    try {
+      visualExtraction =
+        await extractImageWithGroq(
+          buffer,
+          "application/pdf"
+        );
+    } catch (error) {
+      console.error(
+        "GROQ PDF ANALYSIS ERROR:",
+        error?.message || error
+      );
+    }
+  }
+
+  /*
+  |--------------------------------------------------------------------------
   | COMBINE RESULTS
   |--------------------------------------------------------------------------
   */
@@ -447,14 +658,12 @@ ${visualExtraction}
   return `
 [NO READABLE TEXT FOUND]
 
-The PDF could not be read as normal text.
+No machine-readable text could be extracted from this PDF.
 
-Visual verification could not be completed because
-a configured document-vision model was not available
-or could not analyze the document.
+The PDF may be a scanned/image-only document. A configured
+vision/OCR provider was either unavailable or could not analyze it.
 
-Do not assume that missing information is absent from
-the original document.
+Do not assume that information is absent from the original document.
 `;
 }
 
@@ -470,7 +679,7 @@ async function extractImageDocument(
 ) {
   /*
   |--------------------------------------------------------------------------
-  | PRIMARY — GEMINI
+  | STEP 1 — GEMINI VISION
   |--------------------------------------------------------------------------
   */
 
@@ -488,7 +697,7 @@ async function extractImageDocument(
 
   /*
   |--------------------------------------------------------------------------
-  | FALLBACK — GROQ VISION
+  | STEP 2 — GROQ VISION
   |--------------------------------------------------------------------------
   */
 
@@ -506,19 +715,61 @@ async function extractImageDocument(
 
   /*
   |--------------------------------------------------------------------------
-  | NO VISION MODEL
+  | STEP 3 — LOCAL OCR
+  |--------------------------------------------------------------------------
+  |
+  | This allows an image containing ordinary printed text to still be
+  | extracted even when the cloud vision services are unavailable.
+  |
+  */
+
+  const ocrText =
+    await extractImageWithTesseract(
+      buffer
+    );
+
+  if (ocrText) {
+    return ocrText;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | NO EXTRACTION ENGINE AVAILABLE
   |--------------------------------------------------------------------------
   */
+
+  const configuredProviders = [];
+
+  if (gemini) {
+    configuredProviders.push("Gemini");
+  }
+
+  if (groq) {
+    configuredProviders.push("Groq");
+  }
+
+  if (Tesseract) {
+    configuredProviders.push("Tesseract OCR");
+  }
 
   return `
 [IMAGE UPLOADED]
 
-The image was uploaded successfully, but its text
-and visual elements could not be analyzed because
-no configured vision model is available.
+The image was uploaded successfully, but OCR/text extraction could not
+be completed.
 
-Do not assume that information is missing from the
-original document merely because it could not be read.
+Configured extraction providers:
+${
+  configuredProviders.length
+    ? configuredProviders.join(", ")
+    : "None"
+}
+
+The original document may still contain readable information.
+Do not assume that a field is absent merely because extraction failed.
+
+To enable image OCR on the server, configure GEMINI_API_KEY or
+GROQ_API_KEY. For a local OCR fallback, install tesseract.js.
 `;
 }
 
@@ -647,4 +898,9 @@ original document.
 
 module.exports = {
   extractDocument,
+  extractPdfText,
+  extractDocx,
+  extractWithGeminiVision,
+  extractImageWithGroq,
+  extractImageWithTesseract,
 };
