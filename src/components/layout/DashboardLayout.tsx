@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router'
+import MandatoryFeedbackGate from "../MandatoryFeedbackGate";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -2072,7 +2073,9 @@ export default function DashboardLayout() {
             <BackButton />
           </div>
 
-          <Outlet />
+          <MandatoryFeedbackGate>
+            <Outlet />
+          </MandatoryFeedbackGate>
         </main>
       </div>
 

@@ -6,6 +6,7 @@ process.env.TZ = "Asia/Kolkata";
 require("dotenv").config();
 
 const express = require("express");
+const feedbackRoutes = require("./routes/feedbackRoutes");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
@@ -148,6 +149,7 @@ app.use(
 // Required so authMiddleware / routes can read the
 // HttpOnly authentication cookies via req.cookies.
 // =====================================================
+app.use("/api/feedback", feedbackRoutes);
 
 app.use(cookieParser());
 

@@ -32,6 +32,8 @@ import AIResearch from '../pages/AIResearch'
 import AdvocateEarnings from '../pages/advocate/Earnings'
 import AdvocateAnalytics from '../pages/advocate/Analytics'
 
+import Feedback from '../pages/Feedback'
+
 import NotFound from '../pages/NotFound'
 
 export const router = createBrowserRouter([
@@ -141,9 +143,6 @@ export const router = createBrowserRouter([
   // URL:
   // /meeting/:appointmentId
   //
-  // Example:
-  // /meeting/123
-  //
   // Both citizen and advocate use the same Meeting page.
   // Their permissions/role are determined from the
   // authenticated meeting information.
@@ -152,6 +151,26 @@ export const router = createBrowserRouter([
   {
     path: 'meeting/:appointmentId',
     Component: Meeting,
+  },
+
+  // =====================================================
+  // MANDATORY MEETING FEEDBACK
+  // =====================================================
+  //
+  // Shown after a permanent meeting end.
+  //
+  // This is intentionally outside DashboardLayout because
+  // the feedback must be submitted before the user can
+  // access the dashboard again.
+  //
+  // URL:
+  // /feedback
+  //
+  // =====================================================
+
+  {
+    path: 'feedback',
+    Component: Feedback,
   },
 
   // =====================================================

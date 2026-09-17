@@ -1384,7 +1384,7 @@ export default function Meeting() {
                                 cleanupCall();
 
                                 window.setTimeout(() => {
-                                    window.location.href = "/dashboard/meetings";
+                                    window.location.href = `/feedback?appointmentId=${encodeURIComponent(appointmentId)}`;
                                 }, 250);
                             }
                         );
