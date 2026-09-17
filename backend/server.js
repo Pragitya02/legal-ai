@@ -627,6 +627,10 @@ const io =
         }
     );
 
+// Make Socket.IO available to Express route handlers so meeting lifecycle
+// APIs can notify the participant who is currently in the consultation.
+app.set("io", io);
+
 // =====================================================
 // SOCKET.IO AUTHENTICATION
 // =====================================================

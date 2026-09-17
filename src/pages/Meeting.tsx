@@ -15,7 +15,10 @@ import {
     Users,
     ShieldCheck,
     Loader2,
-    AlertCircle
+    AlertCircle,
+    Clock3,
+    X,
+    CheckCircle2
 } from "lucide-react";
 
 import {
@@ -72,6 +75,7 @@ interface MeetingInfo {
     appointmentDate?: string;
     appointmentTime?: string;
     mode?: string;
+    meetingEnded?: boolean;
 }
 
 interface Participant {
@@ -176,6 +180,21 @@ export default function Meeting() {
         );
 
     const [remoteConnected, setRemoteConnected] =
+        useState(false);
+
+    const [showEndOptions, setShowEndOptions] =
+        useState(false);
+
+    const [endRequestPending, setEndRequestPending] =
+        useState(false);
+
+    const [endRequestMessage, setEndRequestMessage] =
+        useState("");
+
+    const [incomingEndRequest, setIncomingEndRequest] =
+        useState(false);
+
+    const [processingEndRequest, setProcessingEndRequest] =
         useState(false);
 
     // =================================================
@@ -331,10 +350,52 @@ export default function Meeting() {
                     data.meeting
                 );
 
+                // Restore any pending permanent-end request after a refresh.
+                try {
+                    const endStatusResponse = await fetch(
+                        `${BACKEND_URL}/api/meetings/${appointmentId}/end-status`,
+                        {
+                            method: "GET",
+                            credentials: "include",
+                            headers: { Accept: "application/json" },
+                        }
+                    );
+
+                    if (endStatusResponse.ok) {
+                        const endStatus = await endStatusResponse.json();
+                        const pending = endStatus?.request?.status === "pending";
+
+                        if (pending) {
+                            const currentRole = String(data.meeting.role || "").toLowerCase();
+                            const requesterRole = String(endStatus?.request?.requester_role || "").toLowerCase();
+
+                            if (requesterRole && requesterRole !== currentRole) {
+                                setIncomingEndRequest(true);
+                                setConnectionStatus(
+                                    `${endStatus?.request?.requester_name || "The other participant"} requested permanent end-call approval.`
+                                );
+                            } else {
+                                setEndRequestPending(true);
+                                setEndRequestMessage(
+                                    "Your permanent end-call request is waiting for the other participant's approval."
+                                );
+                            }
+                        }
+                    }
+                } catch (endStatusError) {
+                    console.warn("Unable to restore meeting end status:", endStatusError);
+                }
+
                 // Do not automatically enter
                 // a consultation that is outside
                 // its permitted joining window.
-                if (
+                if (data.meeting.meetingEnded) {
+
+                    setConnectionStatus(
+                        "This consultation has been permanently ended."
+                    );
+
+                } else if (
                     data.meeting.canJoin === false
                 ) {
 
@@ -383,6 +444,47 @@ export default function Meeting() {
         };
 
     }, []);
+
+    const cleanupCall =
+        useCallback(
+            () => {
+                if (socketRef.current) {
+                    try {
+                        socketRef.current.emit("leave-consultation");
+                    } catch {}
+
+                    socketRef.current.disconnect();
+                    socketRef.current = null;
+                }
+
+                pendingIceCandidatesRef.current = [];
+                remoteStreamRef.current = null;
+
+                if (peerConnectionRef.current) {
+                    peerConnectionRef.current.close();
+                    peerConnectionRef.current = null;
+                }
+
+                if (localStreamRef.current) {
+                    localStreamRef.current.getTracks().forEach((track) => track.stop());
+                    localStreamRef.current = null;
+                }
+
+                if (localVideoRef.current) {
+                    localVideoRef.current.srcObject = null;
+                }
+
+                if (remoteVideoRef.current) {
+                    remoteVideoRef.current.srcObject = null;
+                }
+
+                participantConnectedRef.current = false;
+                setParticipantConnected(false);
+                setRemoteConnected(false);
+                setConnected(false);
+            },
+            []
+        );
 
     // =================================================
     // CREATE PEER CONNECTION
@@ -1229,6 +1331,65 @@ export default function Meeting() {
                         );
 
                         // ---------------------------------
+                        // PERMANENT END REQUEST / APPROVAL
+                        // ---------------------------------
+
+                        socket.on(
+                            "meeting-end-requested",
+                            (data) => {
+                                if (String(data?.appointmentId) !== String(appointmentId)) {
+                                    return;
+                                }
+
+                                const currentRole = String(meeting?.role || "").toLowerCase();
+                                const requesterRole = String(data?.requestedByRole || "").toLowerCase();
+
+                                // Only the participant who did NOT make the request
+                                // should see the approval prompt.
+                                if (requesterRole && requesterRole !== currentRole) {
+                                    setIncomingEndRequest(true);
+                                    setConnectionStatus(
+                                        `${data?.requesterName || "The other participant"} requested permanent end-call approval.`
+                                    );
+                                }
+                            }
+                        );
+
+                        socket.on(
+                            "meeting-end-request-rejected",
+                            (data) => {
+                                if (String(data?.appointmentId) !== String(appointmentId)) {
+                                    return;
+                                }
+
+                                setEndRequestPending(false);
+                                setEndRequestMessage(
+                                    data?.message || "The other participant rejected the permanent end-call request. The consultation continues."
+                                );
+                                setConnectionStatus("Consultation continues.");
+                            }
+                        );
+
+                        socket.on(
+                            "meeting-permanently-ended",
+                            (data) => {
+                                if (String(data?.appointmentId) !== String(appointmentId)) {
+                                    return;
+                                }
+
+                                setEndRequestPending(false);
+                                setIncomingEndRequest(false);
+                                setEndRequestMessage("The consultation has been permanently ended.");
+                                setConnectionStatus("Consultation permanently ended.");
+                                cleanupCall();
+
+                                window.setTimeout(() => {
+                                    window.location.href = "/dashboard/meetings";
+                                }, 250);
+                            }
+                        );
+
+                        // ---------------------------------
                         // SIGNALING ERROR
                         // ---------------------------------
 
@@ -1346,7 +1507,9 @@ export default function Meeting() {
             },
             [
                 createPeerConnection,
-                createOffer
+                createOffer,
+                cleanupCall,
+                meeting
             ]
         );
 
@@ -1376,11 +1539,14 @@ export default function Meeting() {
                 }
 
                 if (
+                    meeting.meetingEnded ||
                     meeting.canJoin === false
                 ) {
 
                     setError(
-                        "The consultation is not open yet. Please join during the scheduled consultation window."
+                        meeting.meetingEnded
+                            ? "This consultation has been permanently ended."
+                            : "The consultation is not open yet. Please join during the scheduled consultation window."
                     );
 
                     return;
@@ -1560,92 +1726,186 @@ export default function Meeting() {
         );
 
     // =================================================
+    // MEETING END-CALL HELPERS
+    // =================================================
+
+    const temporaryLeave =
+        useCallback(
+            () => {
+                if (ending) return;
+
+                setShowEndOptions(false);
+                setEndRequestMessage("");
+                cleanupCall();
+                window.location.href = "/dashboard/meetings";
+            },
+            [cleanupCall, ending]
+        );
+
+    const requestPermanentEnd =
+        useCallback(
+            async () => {
+                if (ending || processingEndRequest) return;
+
+                const appointmentId = appointmentIdRef.current;
+                if (!appointmentId) return;
+
+                try {
+                    setProcessingEndRequest(true);
+                    setError("");
+
+                    const response = await fetch(
+                        `${BACKEND_URL}/api/meetings/${appointmentId}/end-request`,
+                        {
+                            method: "POST",
+                            credentials: "include",
+                            headers: {
+                                Accept: "application/json",
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({}),
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (!response.ok || !data?.success) {
+                        throw new Error(
+                            data?.message || "Unable to process permanent end-call request."
+                        );
+                    }
+
+                    setShowEndOptions(false);
+
+                    if (data.status === "pending") {
+                        setEndRequestPending(true);
+                        setEndRequestMessage(
+                            "Permanent end-call request sent. Waiting for the other participant's approval."
+                        );
+                        setConnectionStatus("Waiting for the other participant's approval...");
+                        return;
+                    }
+
+                    // Permanent end is never automatic. The requester must wait
+                    // for the other participant to approve the request.
+                    setEndRequestPending(true);
+                    setEndRequestMessage(
+                        "Permanent end-call request sent. Waiting for the other participant's approval."
+                    );
+                    setConnectionStatus("Waiting for the other participant's approval...");
+                } catch (err) {
+                    console.error("Permanent end request error:", err);
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Unable to process permanent end-call request."
+                    );
+                } finally {
+                    setProcessingEndRequest(false);
+                }
+            },
+            [cleanupCall, ending, processingEndRequest]
+        );
+
+    const approvePermanentEnd =
+        useCallback(
+            async () => {
+                if (processingEndRequest) return;
+
+                const appointmentId = appointmentIdRef.current;
+                if (!appointmentId) return;
+
+                try {
+                    setProcessingEndRequest(true);
+
+                    const response = await fetch(
+                        `${BACKEND_URL}/api/meetings/${appointmentId}/end-request/approve`,
+                        {
+                            method: "POST",
+                            credentials: "include",
+                            headers: { Accept: "application/json" },
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (!response.ok || !data?.success) {
+                        throw new Error(data?.message || "Unable to approve request.");
+                    }
+
+                    setIncomingEndRequest(false);
+                    setShowEndOptions(false);
+                    cleanupCall();
+                    window.location.href = "/dashboard/meetings";
+                } catch (err) {
+                    console.error("Approve permanent end error:", err);
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Unable to approve permanent end-call request."
+                    );
+                } finally {
+                    setProcessingEndRequest(false);
+                }
+            },
+            [cleanupCall, processingEndRequest]
+        );
+
+    const rejectPermanentEnd =
+        useCallback(
+            async () => {
+                if (processingEndRequest) return;
+
+                const appointmentId = appointmentIdRef.current;
+                if (!appointmentId) return;
+
+                try {
+                    setProcessingEndRequest(true);
+
+                    const response = await fetch(
+                        `${BACKEND_URL}/api/meetings/${appointmentId}/end-request/reject`,
+                        {
+                            method: "POST",
+                            credentials: "include",
+                            headers: { Accept: "application/json" },
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (!response.ok || !data?.success) {
+                        throw new Error(data?.message || "Unable to reject request.");
+                    }
+
+                    setIncomingEndRequest(false);
+                    setEndRequestPending(false);
+                    setEndRequestMessage(
+                        data?.message || "The other participant rejected the permanent end-call request. The consultation continues."
+                    );
+                    setConnectionStatus("Consultation continues.");
+                } catch (err) {
+                    console.error("Reject permanent end error:", err);
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Unable to reject permanent end-call request."
+                    );
+                } finally {
+                    setProcessingEndRequest(false);
+                }
+            },
+            [processingEndRequest]
+        );
+
+    // =================================================
     // END CONSULTATION
     // =================================================
 
     const endConsultation =
         useCallback(
             () => {
-
-                if (
-                    ending
-                ) {
-                    return;
-                }
-
-                setEnding(
-                    true
-                );
-
-                // Tell the server we are leaving.
-                if (
-                    socketRef.current
-                ) {
-
-                    socketRef.current.emit(
-                        "leave-consultation"
-                    );
-
-                    socketRef.current.disconnect();
-
-                    socketRef.current =
-                        null;
-
-                }
-
-                pendingIceCandidatesRef.current = [];
-                remoteStreamRef.current = null;
-
-                // Close peer connection.
-                if (
-                    peerConnectionRef.current
-                ) {
-
-                    peerConnectionRef.current.close();
-
-                    peerConnectionRef.current =
-                        null;
-
-                }
-
-                // Stop camera and microphone.
-                if (
-                    localStreamRef.current
-                ) {
-
-                    localStreamRef.current
-                        .getTracks()
-                        .forEach(
-                            (track) =>
-                                track.stop()
-                        );
-
-                    localStreamRef.current =
-                        null;
-
-                }
-
-                if (
-                    localVideoRef.current
-                ) {
-
-                    localVideoRef.current.srcObject =
-                        null;
-
-                }
-
-                if (
-                    remoteVideoRef.current
-                ) {
-
-                    remoteVideoRef.current.srcObject =
-                        null;
-
-                }
-
-                window.location.href =
-                    "/dashboard/meetings";
-
+                if (ending) return;
+                setShowEndOptions(true);
             },
             [ending]
         );
@@ -2511,6 +2771,12 @@ export default function Meeting() {
                     {connectionStatus}
                 </div>
 
+                {endRequestMessage && (
+                    <div className="mx-auto w-full max-w-2xl rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-center text-sm text-yellow-200">
+                        {endRequestMessage}
+                    </div>
+                )}
+
                 {/* =====================================
                     CONTROLS
                 ====================================== */}
@@ -2698,7 +2964,7 @@ export default function Meeting() {
                                     endConsultation
                                 }
                                 disabled={
-                                    ending
+                                    ending || endRequestPending
                                 }
                                 className="
                                     w-14
@@ -2712,7 +2978,11 @@ export default function Meeting() {
                                     justify-center
                                     transition
                                 "
-                                title="End consultation"
+                                title={
+                                    endRequestPending
+                                        ? "Waiting for advocate approval"
+                                        : "End consultation"
+                                }
                             >
 
                                 <PhoneOff
@@ -2729,6 +2999,125 @@ export default function Meeting() {
                     )}
 
                 </div>
+
+
+            {/* =========================================
+                END CALL OPTIONS / APPROVAL MODAL
+            ========================================== */}
+
+            {showEndOptions && (
+                <div
+                    className="
+                        fixed inset-0 z-50
+                        flex items-center justify-center
+                        bg-black/70 backdrop-blur-sm
+                        px-4
+                    "
+                >
+                    <div
+                        className="
+                            w-full max-w-md
+                            rounded-2xl border border-white/10
+                            bg-gray-900 shadow-2xl
+                            p-6
+                        "
+                    >
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <h2 className="text-xl font-semibold text-white">End consultation</h2>
+                                <p className="mt-2 text-sm text-gray-400">
+                                    Choose whether you want to temporarily leave or permanently end this consultation.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setShowEndOptions(false)}
+                                className="rounded-lg p-2 text-gray-400 hover:bg-white/10 hover:text-white"
+                                aria-label="Close"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <div className="mt-6 space-y-3">
+                            <button
+                                type="button"
+                                onClick={temporaryLeave}
+                                className="w-full rounded-xl border border-white/10 bg-gray-800 px-4 py-4 text-left hover:bg-gray-750 transition"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Clock3 className="h-5 w-5 text-yellow-400" />
+                                    <div>
+                                        <div className="font-semibold text-white">Temporary Leave</div>
+                                        <div className="mt-1 text-xs text-gray-400">Leave the call. The consultation stays active and you can rejoin later.</div>
+                                    </div>
+                                </div>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={requestPermanentEnd}
+                                disabled={processingEndRequest}
+                                className="w-full rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-4 text-left hover:bg-red-500/20 disabled:opacity-50 transition"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <PhoneOff className="h-5 w-5 text-red-400" />
+                                    <div>
+                                        <div className="font-semibold text-white">Permanent End Call</div>
+                                        <div className="mt-1 text-xs text-gray-400">
+                                            "Send a permanent-end request. The consultation ends only after the other participant approves."
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {incomingEndRequest && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 backdrop-blur-sm px-4">
+                    <div className="w-full max-w-md rounded-2xl border border-yellow-500/20 bg-gray-900 p-6 shadow-2xl">
+                        <div className="flex items-center gap-3">
+                            <div className="rounded-full bg-yellow-500/10 p-3">
+                                <AlertCircle className="h-6 w-6 text-yellow-400" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-semibold text-white">Permanent end-call request</h2>
+                                <p className="mt-1 text-sm text-gray-400">
+                                    The other participant is requesting to permanently end this consultation.
+                                    Your approval is required.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
+                            Permanent End Call is a mutual action. The consultation will remain active until you approve.
+                        </div>
+
+                        <div className="mt-6 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={rejectPermanentEnd}
+                                disabled={processingEndRequest}
+                                className="flex-1 rounded-xl border border-white/10 bg-gray-800 px-4 py-3 font-semibold text-white hover:bg-gray-700 disabled:opacity-50"
+                            >
+                                Reject
+                            </button>
+                            <button
+                                type="button"
+                                onClick={approvePermanentEnd}
+                                disabled={processingEndRequest}
+                                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+                            >
+                                <CheckCircle2 className="h-5 w-5" />
+                                Approve & End
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             </main>
 
