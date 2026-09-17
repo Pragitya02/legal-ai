@@ -1,3 +1,4 @@
+const { logAudit } = require("../services/auditService");
 const express = require("express");
 const authMiddleware = require("../middleware/authMiddleware");
 const db = require("../db");
@@ -226,6 +227,23 @@ router.post("/", authMiddleware, async (req, res) => {
 
     const caseId =
       result.insertId;
+      await logAudit({
+        
+        userId: userId,
+        action: "CASE_CREATED",
+        entityType: "CASE",
+        entityId: caseId,
+        description: "Case created successfully",
+        req: req,
+        metadata: {
+          
+          title: title.trim(),
+          category: finalCategory,
+          severity: finalSeverity,
+          status: finalStatus
+        } 
+      });
+
 
     console.log(
       "CASE CREATED SUCCESSFULLY"
@@ -437,6 +455,23 @@ router.patch(
         });
       }
 
+
+      // -------------------------------------------------------
+      // AUDIT TRAIL
+      // -------------------------------------------------------
+
+      await logAudit({
+        userId: userId,
+        action: "CASE_CLOSED",
+        entityType: "CASE",
+        entityId: caseId,
+        description: "Case closed successfully",
+        req: req,
+        metadata: {
+          status: "closed"
+        }
+    });
+
       const [rows] = await db.query(
         `
         SELECT
@@ -609,6 +644,21 @@ router.put("/:id/notes", authMiddleware, async (req, res) => {
       `,
       [caseId, userId, noteText]
     );
+    // -------------------------------------------------------
+    // AUDIT TRAIL
+    // -------------------------------------------------------
+
+    await logAudit({
+    userId: userId,
+    action: "CASE_NOTE_UPDATED",
+    entityType: "CASE",
+    entityId: caseId,
+    description: "Case notes updated successfully",
+    req: req,
+    metadata: {
+      note_length: noteText.length
+    }
+  });
 
     const [rows] = await db.query(
       `
