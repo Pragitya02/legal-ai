@@ -1490,6 +1490,9 @@ export default function DashboardLayout() {
                 searchInputRef
               }
               className="input"
+              type="search"
+              name="global-search"
+              autoComplete="new-password"
               value={search}
               onChange={(
                 event,
@@ -1520,7 +1523,6 @@ export default function DashboardLayout() {
                   ? 'Search clients, cases, research...'
                   : 'Search cases, AI Assistant, documents...'
               }
-              autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
