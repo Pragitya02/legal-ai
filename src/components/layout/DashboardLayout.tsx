@@ -26,14 +26,40 @@ import {
   Briefcase,
   UserRound,
 } from 'lucide-react'
+
 import BackButton from './BackButton'
 import { getStoredUser, logout } from '../../lib/auth'
+
+/*
+|--------------------------------------------------------------------------
+| API
+|--------------------------------------------------------------------------
+*/
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:5001'
 
+/*
+|--------------------------------------------------------------------------
+| HELPERS
+|--------------------------------------------------------------------------
+*/
+
 const isAdvocatePath = (p: string) =>
   p.startsWith('/advocate')
+
+function escapeRegExp(value: string) {
+  return value.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    '\\$&',
+  )
+}
+
+/*
+|--------------------------------------------------------------------------
+| NAVIGATION
+|--------------------------------------------------------------------------
+*/
 
 const citizenNav = [
   {
@@ -142,30 +168,60 @@ const advocateNav = [
   },
 ]
 
+/*
+|--------------------------------------------------------------------------
+| SEARCH RESULT TYPE
+|--------------------------------------------------------------------------
+*/
+
 type SearchResult = {
   id: string
   type: string
   title: string
   content: string
   fullContent?: string
-  date?: string
+  date?: string | null
   url?: string
+  field?: string
+  query?: string
 }
+
+/*
+|--------------------------------------------------------------------------
+| COMPONENT
+|--------------------------------------------------------------------------
+*/
 
 export default function DashboardLayout() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  /*
+  |--------------------------------------------------------------------------
+  | SIDEBAR
+  |--------------------------------------------------------------------------
+  */
 
-  // =====================================================
-  // GLOBAL CONTENT SEARCH
-  // =====================================================
+  const [sidebarOpen, setSidebarOpen] =
+    useState(false)
+
+  /*
+  |--------------------------------------------------------------------------
+  | SEARCH STATE
+  |--------------------------------------------------------------------------
+  */
 
   const [search, setSearch] = useState('')
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
-  const [searchLoading, setSearchLoading] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
+
+  const [searchResults, setSearchResults] =
+    useState<SearchResult[]>([])
+
+  const [searchLoading, setSearchLoading] =
+    useState(false)
+
+  const [searchOpen, setSearchOpen] =
+    useState(false)
+
   const [selectedSearchIndex, setSelectedSearchIndex] =
     useState(-1)
 
@@ -175,17 +231,29 @@ export default function DashboardLayout() {
   const searchInputRef =
     useRef<HTMLInputElement | null>(null)
 
+  /*
+  |--------------------------------------------------------------------------
+  | USER / ROLE
+  |--------------------------------------------------------------------------
+  */
+
   const isAdvocate =
     isAdvocatePath(location.pathname)
 
   const navItems =
-    isAdvocate ? advocateNav : citizenNav
+    isAdvocate
+      ? advocateNav
+      : citizenNav
 
   const userLabel =
-    isAdvocate ? 'Advocate' : 'Citizen'
+    isAdvocate
+      ? 'Advocate'
+      : 'Citizen'
 
   const homeHref =
-    isAdvocate ? '/advocate' : '/dashboard'
+    isAdvocate
+      ? '/advocate'
+      : '/dashboard'
 
   const savedUser: any =
     getStoredUser() || {}
@@ -199,7 +267,10 @@ export default function DashboardLayout() {
   const userInitials =
     userName
       .split(' ')
-      .map((word: string) => word[0])
+      .map(
+        (word: string) =>
+          word[0],
+      )
       .join('')
       .slice(0, 2)
       .toUpperCase()
@@ -209,758 +280,1018 @@ export default function DashboardLayout() {
       ? '/advocate/profile'
       : '/dashboard/profile'
 
-  // =====================================================
-  // SEARCH API
-  // =====================================================
+  /*
+  |--------------------------------------------------------------------------
+  | GLOBAL SEARCH API
+  |--------------------------------------------------------------------------
+  |
+  | Searches the backend database instead of only the currently
+  | visible page.
+  |
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
-    const query = search.trim()
+    const query =
+      search.trim()
 
-    if (!query || query.length < 2) {
+    /*
+    |--------------------------------------------------------------------------
+    | EMPTY / SHORT QUERY
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      !query ||
+      query.length < 2
+    ) {
       setSearchResults([])
       setSearchLoading(false)
       setSearchOpen(false)
       setSelectedSearchIndex(-1)
+
       return
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | OPEN SEARCH
+    |--------------------------------------------------------------------------
+    */
 
     setSearchOpen(true)
     setSearchLoading(true)
     setSelectedSearchIndex(-1)
 
+    /*
+    |--------------------------------------------------------------------------
+    | ABORT PREVIOUS REQUEST
+    |--------------------------------------------------------------------------
+    */
+
     const controller =
       new AbortController()
 
-    const timer = window.setTimeout(
-      async () => {
-        try {
-          const response =
-            await fetch(
-              `${API_BASE_URL}/api/search?q=${encodeURIComponent(
-                query
-              )}`,
-              {
-                method: 'GET',
-                credentials: 'include',
-                signal: controller.signal,
-                headers: {
-                  Accept:
-                    'application/json',
+    /*
+    |--------------------------------------------------------------------------
+    | DEBOUNCE
+    |--------------------------------------------------------------------------
+    */
+
+    const timer =
+      window.setTimeout(
+        async () => {
+          try {
+            /*
+            |--------------------------------------------------------------------------
+            | CLEAN API BASE URL
+            |--------------------------------------------------------------------------
+            */
+
+            const baseUrl =
+              API_BASE_URL.replace(
+                /\/+$/,
+                '',
+              )
+
+            /*
+            |--------------------------------------------------------------------------
+            | SEARCH URL
+            |--------------------------------------------------------------------------
+            */
+
+            const url =
+              `${baseUrl}/api/search?q=${encodeURIComponent(
+                query,
+              )}`
+
+            console.log(
+              '[GLOBAL SEARCH] Request:',
+              url,
+            )
+
+            /*
+            |--------------------------------------------------------------------------
+            | FETCH
+            |--------------------------------------------------------------------------
+            */
+
+            const response =
+              await fetch(
+                url,
+                {
+                  method: 'GET',
+
+                  /*
+                  |--------------------------------------------------------------------------
+                  | IMPORTANT
+                  | Sends authentication cookies.
+                  |--------------------------------------------------------------------------
+                  */
+
+                  credentials:
+                    'include',
+
+                  headers: {
+                    Accept:
+                      'application/json',
+                  },
+
+                  signal:
+                    controller.signal,
                 },
-              }
+              )
+
+            /*
+            |--------------------------------------------------------------------------
+            | HTTP ERROR
+            |--------------------------------------------------------------------------
+            */
+
+            if (!response.ok) {
+              const errorText =
+                await response.text()
+
+              console.error(
+                '[GLOBAL SEARCH] HTTP ERROR:',
+                response.status,
+                errorText,
+              )
+
+              throw new Error(
+                `Search request failed: ${response.status}`,
+              )
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | JSON
+            |--------------------------------------------------------------------------
+            */
+
+            const data =
+              await response.json()
+
+            console.log(
+              '[GLOBAL SEARCH] Response:',
+              data,
             )
 
-          if (!response.ok) {
-            throw new Error(
-              `Search request failed: ${response.status}`
-            )
-          }
+            /*
+            |--------------------------------------------------------------------------
+            | VALID RESPONSE
+            |--------------------------------------------------------------------------
+            */
 
-          const data =
-            await response.json()
+            if (
+              data?.success === true &&
+              Array.isArray(
+                data.results,
+              )
+            ) {
+              setSearchResults(
+                data.results,
+              )
+            } else {
+              console.warn(
+                '[GLOBAL SEARCH] Invalid response:',
+                data,
+              )
 
-          if (
-            data?.success &&
-            Array.isArray(data.results)
+              setSearchResults([])
+            }
+          } catch (
+            error: any
           ) {
-            setSearchResults(
-              data.results
-            )
-          } else {
-            setSearchResults([])
-          }
-        } catch (error: any) {
-          if (
-            error?.name !==
-            'AbortError'
-          ) {
+            /*
+            |--------------------------------------------------------------------------
+            | ABORTED REQUEST
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+              error?.name ===
+              'AbortError'
+            ) {
+              return
+            }
+
             console.error(
-              'Global search error:',
-              error
+              '[GLOBAL SEARCH] ERROR:',
+              error,
             )
 
             setSearchResults([])
+          } finally {
+            if (
+              !controller.signal
+                .aborted
+            ) {
+              setSearchLoading(
+                false,
+              )
+            }
           }
-        } finally {
-          if (
-            !controller.signal.aborted
-          ) {
-            setSearchLoading(false)
-          }
-        }
-      },
-      280
-    )
+        },
+        300,
+      )
+
+    /*
+    |--------------------------------------------------------------------------
+    | CLEANUP
+    |--------------------------------------------------------------------------
+    */
 
     return () => {
-      window.clearTimeout(timer)
+      window.clearTimeout(
+        timer,
+      )
+
       controller.abort()
     }
   }, [search])
 
-  // =====================================================
-  // CLOSE SEARCH WHEN CLICKING OUTSIDE
-  // =====================================================
+  /*
+  |--------------------------------------------------------------------------
+  | CLOSE SEARCH WHEN CLICKING OUTSIDE
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
-    const handleOutsideClick = (
-      event: MouseEvent
-    ) => {
-      if (
-        searchContainerRef.current &&
-        !searchContainerRef.current.contains(
-          event.target as Node
-        )
-      ) {
-        setSearchOpen(false)
+    const handleOutsideClick =
+      (event: MouseEvent) => {
+        if (
+          searchContainerRef.current &&
+          !searchContainerRef.current.contains(
+            event.target as Node,
+          )
+        ) {
+          setSearchOpen(false)
+          setSelectedSearchIndex(-1)
+        }
       }
-    }
 
     document.addEventListener(
       'mousedown',
-      handleOutsideClick
+      handleOutsideClick,
     )
 
     return () => {
       document.removeEventListener(
         'mousedown',
-        handleOutsideClick
+        handleOutsideClick,
       )
     }
   }, [])
 
-  // =====================================================
-  // ESCAPE KEY + CTRL/CMD + K
-  // =====================================================
+  /*
+  |--------------------------------------------------------------------------
+  | CTRL/CMD + K
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
-    const handleKeyDown = (
-      event: KeyboardEvent
-    ) => {
-      if (
-        (event.ctrlKey ||
-          event.metaKey) &&
-        event.key.toLowerCase() === 'k'
-      ) {
-        event.preventDefault()
+    const handleKeyDown =
+      (event: KeyboardEvent) => {
+        if (
+          (event.ctrlKey ||
+            event.metaKey) &&
+          event.key.toLowerCase() ===
+            'k'
+        ) {
+          event.preventDefault()
 
-        searchInputRef.current?.focus()
-        setSearchOpen(true)
+          searchInputRef.current?.focus()
 
-        return
+          setSearchOpen(true)
+
+          return
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | ESCAPE
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+          event.key ===
+          'Escape'
+        ) {
+          setSearchOpen(false)
+
+          setSelectedSearchIndex(
+            -1,
+          )
+
+          searchInputRef.current?.blur()
+        }
       }
-
-      if (event.key === 'Escape') {
-        setSearchOpen(false)
-        setSelectedSearchIndex(-1)
-
-        searchInputRef.current?.blur()
-
-        return
-      }
-    }
 
     document.addEventListener(
       'keydown',
-      handleKeyDown
+      handleKeyDown,
     )
 
     return () => {
       document.removeEventListener(
         'keydown',
-        handleKeyDown
+        handleKeyDown,
       )
     }
   }, [])
 
-  // =====================================================
-  // SEARCH KEYBOARD NAVIGATION
-  // =====================================================
+  /*
+  |--------------------------------------------------------------------------
+  | OPEN SEARCH RESULT
+  |--------------------------------------------------------------------------
+  */
 
-  const handleSearchKeyDown = (
-    event: React.KeyboardEvent<HTMLInputElement>
-  ) => {
-    if (!searchOpen) {
-      if (
-        event.key === 'ArrowDown' ||
-        event.key === 'ArrowUp'
-      ) {
-        setSearchOpen(true)
-      }
-
-      return
-    }
-
-    if (
-      event.key === 'ArrowDown'
-    ) {
-      event.preventDefault()
-
-      if (searchResults.length === 0) {
+  const openSearchResult =
+    (
+      result: SearchResult,
+    ) => {
+      if (!result?.url) {
         return
       }
 
+      setSearchOpen(false)
+
       setSelectedSearchIndex(
-        (previous) =>
-          previous >=
-          searchResults.length - 1
-            ? 0
-            : previous + 1
+        -1,
       )
 
-      return
+      /*
+      |--------------------------------------------------------------------------
+      | Keep search text visible until navigation occurs.
+      |--------------------------------------------------------------------------
+      */
+
+      navigate(result.url)
     }
 
-    if (
-      event.key === 'ArrowUp'
-    ) {
-      event.preventDefault()
+  /*
+  |--------------------------------------------------------------------------
+  | KEYBOARD NAVIGATION
+  |--------------------------------------------------------------------------
+  */
 
-      if (searchResults.length === 0) {
+  const handleSearchKeyDown =
+    (
+      event: React.KeyboardEvent<HTMLInputElement>,
+    ) => {
+      /*
+      |--------------------------------------------------------------------------
+      | ESC
+      |--------------------------------------------------------------------------
+      */
+
+      if (
+        event.key ===
+        'Escape'
+      ) {
+        event.preventDefault()
+
+        setSearchOpen(false)
+
+        setSelectedSearchIndex(
+          -1,
+        )
+
         return
       }
 
-      setSelectedSearchIndex(
-        (previous) =>
-          previous <= 0
-            ? searchResults.length - 1
-            : previous - 1
-      )
+      /*
+      |--------------------------------------------------------------------------
+      | OPEN DROPDOWN
+      |--------------------------------------------------------------------------
+      */
 
-      return
-    }
+      if (!searchOpen) {
+        if (
+          event.key ===
+            'ArrowDown' ||
+          event.key ===
+            'ArrowUp'
+        ) {
+          setSearchOpen(true)
+        }
 
-    if (
-      event.key === 'Enter'
-    ) {
-      event.preventDefault()
+        return
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | ARROW DOWN
+      |--------------------------------------------------------------------------
+      */
 
       if (
-        selectedSearchIndex >= 0 &&
-        searchResults[
-          selectedSearchIndex
-        ]
+        event.key ===
+        'ArrowDown'
       ) {
-        openSearchResult(
+        event.preventDefault()
+
+        if (
+          searchResults.length ===
+          0
+        ) {
+          return
+        }
+
+        setSelectedSearchIndex(
+          (
+            previous,
+          ) =>
+            previous >=
+            searchResults.length -
+              1
+              ? 0
+              : previous + 1,
+        )
+
+        return
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | ARROW UP
+      |--------------------------------------------------------------------------
+      */
+
+      if (
+        event.key ===
+        'ArrowUp'
+      ) {
+        event.preventDefault()
+
+        if (
+          searchResults.length ===
+          0
+        ) {
+          return
+        }
+
+        setSelectedSearchIndex(
+          (
+            previous,
+          ) =>
+            previous <= 0
+              ? searchResults.length -
+                1
+              : previous - 1,
+        )
+
+        return
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | ENTER
+      |--------------------------------------------------------------------------
+      */
+
+      if (
+        event.key ===
+        'Enter'
+      ) {
+        event.preventDefault()
+
+        /*
+        |--------------------------------------------------------------------------
+        | Selected result
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+          selectedSearchIndex >=
+            0 &&
           searchResults[
             selectedSearchIndex
           ]
-        )
+        ) {
+          openSearchResult(
+            searchResults[
+              selectedSearchIndex
+            ],
+          )
 
-        return
-      }
+          return
+        }
 
-      if (
-        searchResults.length > 0
-      ) {
-        openSearchResult(
-          searchResults[0]
-        )
-      }
+        /*
+        |--------------------------------------------------------------------------
+        | First result
+        |--------------------------------------------------------------------------
+        */
 
-      return
-    }
-
-    if (
-      event.key === 'Escape'
-    ) {
-      event.preventDefault()
-
-      setSearchOpen(false)
-      setSelectedSearchIndex(-1)
-
-      return
-    }
-  }
-
-  // =====================================================
-  // OPEN SEARCH RESULT
-  // =====================================================
-
-  const openSearchResult = (
-    result: SearchResult
-  ) => {
-    if (!result?.url) {
-      return
-    }
-
-    setSearchOpen(false)
-    setSelectedSearchIndex(-1)
-
-    navigate(result.url)
-  }
-
-  // =====================================================
-  // RESULT ICON
-  // =====================================================
-
-  const getResultIcon = (
-    type: string
-  ) => {
-    const normalized =
-      type.toLowerCase()
-
-    if (
-      normalized.includes(
-        'assistant'
-      )
-    ) {
-      return MessageCircle
-    }
-
-    if (
-      normalized.includes(
-        'research'
-      )
-    ) {
-      return BookOpen
-    }
-
-    if (
-      normalized.includes(
-        'document'
-      )
-    ) {
-      return FileSearch
-    }
-
-    if (
-      normalized.includes(
-        'case'
-      )
-    ) {
-      return Briefcase
-    }
-
-    if (
-      normalized.includes(
-        'client'
-      )
-    ) {
-      return UserRound
-    }
-
-    return FileText
-  }
-
-  // =====================================================
-  // HIGHLIGHT SEARCH TERM
-  // =====================================================
-
-  const renderHighlightedText = (
-    text: string
-  ) => {
-    if (!text) {
-      return null
-    }
-
-    const query =
-      search.trim()
-
-    if (!query) {
-      return text
-    }
-
-    const parts =
-      text.split(
-        new RegExp(
-          `(${escapeRegExp(query)})`,
-          'gi'
-        )
-      )
-
-    return parts.map(
-      (part, index) => {
-        const isMatch =
-          part.toLowerCase() ===
-          query.toLowerCase()
-
-        if (isMatch) {
-          return (
-            <mark
-              key={index}
-              style={{
-                background:
-                  'rgba(234, 179, 8, 0.28)',
-                color:
-                  'inherit',
-                borderRadius: 3,
-                padding:
-                  '1px 2px',
-                fontWeight: 700,
-              }}
-            >
-              {part}
-            </mark>
+        if (
+          searchResults.length >
+          0
+        ) {
+          openSearchResult(
+            searchResults[0],
           )
         }
 
-        return (
-          <span key={index}>
-            {part}
-          </span>
-        )
+        return
       }
-    )
-  }
+    }
 
-  // =====================================================
-  // SIDEBAR
-  // =====================================================
+  /*
+  |--------------------------------------------------------------------------
+  | RESULT ICON
+  |--------------------------------------------------------------------------
+  */
 
-  const Sidebar = () => (
-    <aside
-      className="sidebar"
-      style={{
-        zIndex: 40,
-      }}
-    >
-      <div
+  const getResultIcon =
+    (
+      type: string,
+    ) => {
+      const normalized =
+        type.toLowerCase()
+
+      if (
+        normalized.includes(
+          'assistant',
+        )
+      ) {
+        return MessageCircle
+      }
+
+      if (
+        normalized.includes(
+          'research',
+        )
+      ) {
+        return BookOpen
+      }
+
+      if (
+        normalized.includes(
+          'document',
+        )
+      ) {
+        return FileSearch
+      }
+
+      if (
+        normalized.includes(
+          'case',
+        )
+      ) {
+        return Briefcase
+      }
+
+      if (
+        normalized.includes(
+          'client',
+        )
+      ) {
+        return UserRound
+      }
+
+      return FileText
+    }
+
+  /*
+  |--------------------------------------------------------------------------
+  | HIGHLIGHT SEARCH TERM
+  |--------------------------------------------------------------------------
+  */
+
+  const renderHighlightedText =
+    (
+      text: string,
+    ) => {
+      if (!text) {
+        return null
+      }
+
+      const query =
+        search.trim()
+
+      if (!query) {
+        return text
+      }
+
+      const parts =
+        text.split(
+          new RegExp(
+            `(${escapeRegExp(
+              query,
+            )})`,
+            'gi',
+          ),
+        )
+
+      return parts.map(
+        (
+          part,
+          index,
+        ) => {
+          const isMatch =
+            part.toLowerCase() ===
+            query.toLowerCase()
+
+          if (isMatch) {
+            return (
+              <mark
+                key={index}
+                style={{
+                  background:
+                    'rgba(234, 179, 8, 0.28)',
+                  color:
+                    'inherit',
+                  borderRadius: 3,
+                  padding:
+                    '1px 2px',
+                  fontWeight: 700,
+                }}
+              >
+                {part}
+              </mark>
+            )
+          }
+
+          return (
+            <span key={index}>
+              {part}
+            </span>
+          )
+        },
+      )
+    }
+
+  /*
+  |--------------------------------------------------------------------------
+  | SIDEBAR
+  |--------------------------------------------------------------------------
+  */
+
+  const Sidebar =
+    () => (
+      <aside
+        className="sidebar"
         style={{
-          padding:
-            '20px 16px 16px',
-          borderBottom:
-            '1px solid var(--border)',
+          zIndex: 40,
         }}
       >
-        <Link
-          to={homeHref}
+        {/* LOGO */}
+
+        <div
           style={{
-            textDecoration:
-              'none',
-            display: 'flex',
-            alignItems:
-              'center',
-            gap: 10,
+            padding:
+              '20px 16px 16px',
+            borderBottom:
+              '1px solid var(--border)',
           }}
         >
-          {/* Nyaya AI Logo */}
-          <img
-            src="/nyaya-logo.jpeg"
-            alt="Nyaya AI"
+          <Link
+            to={homeHref}
             style={{
-              width: 42,
-              height: 42,
-              borderRadius:
-                '50%',
-              objectFit: 'cover',
-              display: 'block',
-              flexShrink: 0,
-            }}
-          />
-
-          <span
-            style={{
-              fontWeight: 800,
-              fontSize:
-                '1rem',
-              color:
-                'var(--text)',
-              letterSpacing:
-                '-0.02em',
-            }}
-          >
-            Nyaya
-            <span
-              style={{
-                color:
-                  'var(--blue)',
-              }}
-            >
-              AI
-            </span>
-          </span>
-        </Link>
-
-        {isAdvocate && (
-          <div
-            style={{
-              marginTop: 8,
+              textDecoration:
+                'none',
               display: 'flex',
               alignItems:
                 'center',
-              gap: 6,
+              gap: 10,
             }}
           >
+            <img
+              src="/nyaya-logo.jpeg"
+              alt="Nyaya AI"
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius:
+                  '50%',
+                objectFit:
+                  'cover',
+                display: 'block',
+                flexShrink: 0,
+              }}
+            />
+
+            <span
+              style={{
+                fontWeight: 800,
+                fontSize:
+                  '1rem',
+                color:
+                  'var(--text)',
+                letterSpacing:
+                  '-0.02em',
+              }}
+            >
+              Nyaya
+              <span
+                style={{
+                  color:
+                    'var(--blue)',
+                }}
+              >
+                AI
+              </span>
+            </span>
+          </Link>
+
+          {isAdvocate && (
             <div
               style={{
-                padding:
-                  '2px 8px',
-                borderRadius: 6,
+                marginTop: 8,
+                display: 'flex',
+                alignItems:
+                  'center',
+                gap: 6,
+              }}
+            >
+              <div
+                style={{
+                  padding:
+                    '2px 8px',
+                  borderRadius: 6,
+                  fontSize:
+                    '0.65rem',
+                  fontWeight: 700,
+                  background:
+                    'var(--emerald-subtle)',
+                  color:
+                    'var(--emerald)',
+                  border:
+                    '1px solid var(--emerald-light)',
+                  letterSpacing:
+                    '0.05em',
+                  textTransform:
+                    'uppercase',
+                }}
+              >
+                Verified Advocate
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* NAVIGATION */}
+
+        <nav
+          style={{
+            padding:
+              '12px 10px',
+            flex: 1,
+          }}
+        >
+          <div
+            style={{
+              marginBottom: 6,
+              padding:
+                '0 6px',
+            }}
+          >
+            <span
+              style={{
                 fontSize:
                   '0.65rem',
                 fontWeight: 700,
-                background:
-                  'var(--emerald-subtle)',
                 color:
-                  'var(--emerald)',
-                border:
-                  '1px solid var(--emerald-light)',
+                  'var(--text-subtle)',
                 letterSpacing:
-                  '0.05em',
+                  '0.08em',
                 textTransform:
                   'uppercase',
               }}
             >
-              Verified Advocate
-            </div>
+              Navigation
+            </span>
           </div>
-        )}
-      </div>
 
-      <nav
-        style={{
-          padding:
-            '12px 10px',
-          flex: 1,
-        }}
-      >
-        <div
-          style={{
-            marginBottom: 6,
-            padding:
-              '0 6px',
-          }}
-        >
-          <span
-            style={{
-              fontSize:
-                '0.65rem',
-              fontWeight: 700,
-              color:
-                'var(--text-subtle)',
-              letterSpacing:
-                '0.08em',
-              textTransform:
-                'uppercase',
-            }}
-          >
-            Navigation
-          </span>
-        </div>
+          {navItems.map(
+            (item) => {
+              const active =
+                location.pathname ===
+                item.href
 
-        {navItems.map(
-          (item) => {
-            const active =
-              location.pathname ===
-              item.href
-
-            return (
-              <Link
-                key={item.href}
-                to={item.href}
-                onClick={() =>
-                  setSidebarOpen(
-                    false
-                  )
-                }
-                className={`nav-item ${
-                  active
-                    ? 'active'
-                    : ''
-                }`}
-              >
-                <item.icon
-                  size={17}
-                  strokeWidth={
-                    active
-                      ? 2.5
-                      : 2
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  onClick={() =>
+                    setSidebarOpen(
+                      false,
+                    )
                   }
-                />
-
-                <span
-                  style={{
-                    flex: 1,
-                  }}
+                  className={`nav-item ${
+                    active
+                      ? 'active'
+                      : ''
+                  }`}
                 >
-                  {item.label}
-                </span>
+                  <item.icon
+                    size={17}
+                    strokeWidth={
+                      active
+                        ? 2.5
+                        : 2
+                    }
+                  />
 
-                {'badge' in
-                  item &&
-                typeof item.badge ===
-                  'number' ? (
                   <span
                     style={{
-                      minWidth: 18,
-                      height: 18,
-                      borderRadius: 9,
-                      background:
-                        'var(--blue)',
-                      color:
-                        'white',
-                      fontSize:
-                        '0.65rem',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems:
-                        'center',
-                      justifyContent:
-                        'center',
-                      padding:
-                        '0 5px',
+                      flex: 1,
                     }}
                   >
-                    {String(
-                      item.badge
-                    )}
+                    {item.label}
                   </span>
-                ) : null}
-              </Link>
-            )
-          }
-        )}
-      </nav>
 
-      <div
-        style={{
-          padding:
-            '12px 10px',
-          borderTop:
-            '1px solid var(--border)',
-        }}
-      >
+                  {'badge' in
+                    item &&
+                  typeof item.badge ===
+                    'number' ? (
+                    <span
+                      style={{
+                        minWidth: 18,
+                        height: 18,
+                        borderRadius:
+                          9,
+                        background:
+                          'var(--blue)',
+                        color:
+                          'white',
+                        fontSize:
+                          '0.65rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems:
+                          'center',
+                        justifyContent:
+                          'center',
+                        padding:
+                          '0 5px',
+                      }}
+                    >
+                      {String(
+                        item.badge,
+                      )}
+                    </span>
+                  ) : null}
+                </Link>
+              )
+            },
+          )}
+        </nav>
+
+        {/* USER */}
+
         <div
           style={{
-            display: 'flex',
-            alignItems:
-              'center',
-            gap: 10,
             padding:
-              '8px 10px',
+              '12px 10px',
+            borderTop:
+              '1px solid var(--border)',
           }}
         >
           <div
-            className="avatar"
             style={{
-              width: 36,
-              height: 36,
-              fontSize:
-                '0.8rem',
-            }}
-          >
-            {userInitials}
-          </div>
-
-          <div
-            style={{
-              flex: 1,
-              minWidth: 0,
+              display: 'flex',
+              alignItems:
+                'center',
+              gap: 10,
+              padding:
+                '8px 10px',
             }}
           >
             <div
+              className="avatar"
               style={{
+                width: 36,
+                height: 36,
                 fontSize:
                   '0.8rem',
-                fontWeight: 600,
-                color:
-                  'var(--text)',
-                whiteSpace:
-                  'nowrap',
-                overflow:
-                  'hidden',
-                textOverflow:
-                  'ellipsis',
               }}
             >
-              {userName}
+              {userInitials}
             </div>
 
             <div
               style={{
-                fontSize:
-                  '0.68rem',
-                color:
-                  'var(--text-muted)',
+                flex: 1,
+                minWidth: 0,
               }}
             >
-              {userLabel}
+              <div
+                style={{
+                  fontSize:
+                    '0.8rem',
+                  fontWeight: 600,
+                  color:
+                    'var(--text)',
+                  whiteSpace:
+                    'nowrap',
+                  overflow:
+                    'hidden',
+                  textOverflow:
+                    'ellipsis',
+                }}
+              >
+                {userName}
+              </div>
+
+              <div
+                style={{
+                  fontSize:
+                    '0.68rem',
+                  color:
+                    'var(--text-muted)',
+                }}
+              >
+                {userLabel}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div
-          style={{
-            display: 'flex',
-            gap: 6,
-            padding:
-              '6px 4px 0',
-          }}
-        >
-          <button
-            onClick={() => {
-              logout(
-                API_BASE_URL
-              ).finally(() => {
-                navigate('/')
-              })
-            }}
+          <div
             style={{
-              flex: 1,
-              padding: '7px',
-              borderRadius: 8,
-              border:
-                '1px solid var(--border)',
-              background:
-                'var(--bg-secondary)',
-              cursor:
-                'pointer',
-              color:
-                'var(--text-muted)',
               display: 'flex',
-              alignItems:
-                'center',
-              justifyContent:
-                'center',
-            }}
-            title="Logout"
-          >
-            <LogOut
-              size={14}
-            />
-          </button>
-
-          <Link
-            to={profileHref}
-            style={{
-              flex: 2,
-              padding: '7px',
-              borderRadius: 8,
-              border:
-                '1px solid var(--border)',
-              background:
-                'var(--bg-secondary)',
-              cursor:
-                'pointer',
-              color:
-                'var(--text-muted)',
-              display: 'flex',
-              alignItems:
-                'center',
-              justifyContent:
-                'center',
-              gap: 4,
-              textDecoration:
-                'none',
-              fontSize:
-                '0.75rem',
-              fontWeight: 500,
+              gap: 6,
+              padding:
+                '6px 4px 0',
             }}
           >
-            Profile
-            <ChevronRight
-              size={12}
-            />
-          </Link>
-        </div>
-      </div>
-    </aside>
-  )
+            <button
+              onClick={() => {
+                logout(
+                  API_BASE_URL,
+                ).finally(() => {
+                  navigate('/')
+                })
+              }}
+              style={{
+                flex: 1,
+                padding: '7px',
+                borderRadius: 8,
+                border:
+                  '1px solid var(--border)',
+                background:
+                  'var(--bg-secondary)',
+                cursor:
+                  'pointer',
+                color:
+                  'var(--text-muted)',
+                display: 'flex',
+                alignItems:
+                  'center',
+                justifyContent:
+                  'center',
+              }}
+              title="Logout"
+            >
+              <LogOut
+                size={14}
+              />
+            </button>
 
-  // =====================================================
-  // RENDER
-  // =====================================================
+            <Link
+              to={profileHref}
+              style={{
+                flex: 2,
+                padding: '7px',
+                borderRadius: 8,
+                border:
+                  '1px solid var(--border)',
+                background:
+                  'var(--bg-secondary)',
+                cursor:
+                  'pointer',
+                color:
+                  'var(--text-muted)',
+                display: 'flex',
+                alignItems:
+                  'center',
+                justifyContent:
+                  'center',
+                gap: 4,
+                textDecoration:
+                  'none',
+                fontSize:
+                  '0.75rem',
+                fontWeight: 500,
+              }}
+            >
+              Profile
+              <ChevronRight
+                size={12}
+              />
+            </Link>
+          </div>
+        </div>
+      </aside>
+    )
+
+  /*
+  |--------------------------------------------------------------------------
+  | RENDER
+  |--------------------------------------------------------------------------
+  */
 
   return (
     <div
@@ -971,17 +1302,13 @@ export default function DashboardLayout() {
           'var(--bg)',
       }}
     >
-      {/* =================================================
-          DESKTOP SIDEBAR
-      ================================================= */}
+      {/* DESKTOP SIDEBAR */}
 
       <div className="hidden lg:block">
         <Sidebar />
       </div>
 
-      {/* =================================================
-          MOBILE SIDEBAR
-      ================================================= */}
+      {/* MOBILE SIDEBAR */}
 
       {sidebarOpen && (
         <div
@@ -1004,7 +1331,7 @@ export default function DashboardLayout() {
             }}
             onClick={() =>
               setSidebarOpen(
-                false
+                false,
               )
             }
           />
@@ -1022,7 +1349,7 @@ export default function DashboardLayout() {
           <button
             onClick={() =>
               setSidebarOpen(
-                false
+                false,
               )
             }
             style={{
@@ -1053,9 +1380,7 @@ export default function DashboardLayout() {
         </div>
       )}
 
-      {/* =================================================
-          MAIN
-      ================================================= */}
+      {/* MAIN */}
 
       <div
         style={{
@@ -1068,9 +1393,7 @@ export default function DashboardLayout() {
             'hidden',
         }}
       >
-        {/* =================================================
-            TOP BAR
-        ================================================= */}
+        {/* TOP BAR */}
 
         <header
           style={{
@@ -1100,7 +1423,7 @@ export default function DashboardLayout() {
           <button
             onClick={() =>
               setSidebarOpen(
-                true
+                true,
               )
             }
             className="lg:hidden"
@@ -1126,9 +1449,9 @@ export default function DashboardLayout() {
             <Menu size={17} />
           </button>
 
-          {/* =================================================
+          {/* =====================================================
               GLOBAL SEARCH
-          ================================================= */}
+          ===================================================== */}
 
           <div
             ref={
@@ -1141,6 +1464,8 @@ export default function DashboardLayout() {
                 'relative',
             }}
           >
+            {/* SEARCH ICON */}
+
             <Search
               size={15}
               style={{
@@ -1158,18 +1483,23 @@ export default function DashboardLayout() {
               }}
             />
 
+            {/* INPUT */}
+
             <input
               ref={
                 searchInputRef
               }
               className="input"
               value={search}
-              onChange={(event) => {
+              onChange={(
+                event,
+              ) => {
                 setSearch(
-                  event.target.value
+                  event.target.value,
                 )
+
                 setSearchOpen(
-                  true
+                  true,
                 )
               }}
               onFocus={() => {
@@ -1178,7 +1508,7 @@ export default function DashboardLayout() {
                     .length >= 2
                 ) {
                   setSearchOpen(
-                    true
+                    true,
                   )
                 }
               }}
@@ -1187,8 +1517,8 @@ export default function DashboardLayout() {
               }
               placeholder={
                 isAdvocate
-                  ? 'Search clients, cases, laws...'
-                  : 'Search cases, advocates, laws...'
+                  ? 'Search clients, cases, research...'
+                  : 'Search cases, AI Assistant, documents...'
               }
               autoComplete="off"
               autoCorrect="off"
@@ -1204,7 +1534,7 @@ export default function DashboardLayout() {
               }}
             />
 
-            {/* Loading indicator */}
+            {/* LOADING */}
 
             {searchLoading && (
               <Loader2
@@ -1224,9 +1554,9 @@ export default function DashboardLayout() {
               />
             )}
 
-            {/* =================================================
-                SEARCH RESULTS DROPDOWN
-            ================================================= */}
+            {/* =====================================================
+                SEARCH RESULTS
+            ===================================================== */}
 
             {searchOpen &&
               search.trim()
@@ -1251,7 +1581,7 @@ export default function DashboardLayout() {
                     zIndex: 100,
                   }}
                 >
-                  {/* Search header */}
+                  {/* SEARCH HEADER */}
 
                   <div
                     style={{
@@ -1302,7 +1632,7 @@ export default function DashboardLayout() {
                     </div>
                   </div>
 
-                  {/* Loading */}
+                  {/* LOADING */}
 
                   {searchLoading &&
                     searchResults.length ===
@@ -1339,7 +1669,7 @@ export default function DashboardLayout() {
                       </div>
                     )}
 
-                  {/* No results */}
+                  {/* NO RESULTS */}
 
                   {!searchLoading &&
                     searchResults.length ===
@@ -1389,16 +1719,16 @@ export default function DashboardLayout() {
                       </div>
                     )}
 
-                  {/* Results */}
+                  {/* RESULTS */}
 
                   {searchResults.map(
                     (
                       result,
-                      index
+                      index,
                     ) => {
                       const Icon =
                         getResultIcon(
-                          result.type
+                          result.type,
                         )
 
                       const selected =
@@ -1413,16 +1743,17 @@ export default function DashboardLayout() {
                           type="button"
                           onClick={() =>
                             openSearchResult(
-                              result
+                              result,
                             )
                           }
                           onMouseEnter={() =>
                             setSelectedSearchIndex(
-                              index
+                              index,
                             )
                           }
                           style={{
-                            width: '100%',
+                            width:
+                              '100%',
                             textAlign:
                               'left',
                             border: 'none',
@@ -1449,7 +1780,7 @@ export default function DashboardLayout() {
                               'var(--text)',
                           }}
                         >
-                          {/* Icon */}
+                          {/* ICON */}
 
                           <div
                             style={{
@@ -1474,7 +1805,7 @@ export default function DashboardLayout() {
                             />
                           </div>
 
-                          {/* Content */}
+                          {/* CONTENT */}
 
                           <div
                             style={{
@@ -1482,7 +1813,7 @@ export default function DashboardLayout() {
                               minWidth: 0,
                             }}
                           >
-                            {/* Source */}
+                            {/* SOURCE */}
 
                             <div
                               style={{
@@ -1512,15 +1843,31 @@ export default function DashboardLayout() {
                                   result.type
                                 }
                               </span>
+
+                              {result.field && (
+                                <span
+                                  style={{
+                                    fontSize:
+                                      '0.6rem',
+                                    color:
+                                      'var(--text-subtle)',
+                                    textTransform:
+                                      'uppercase',
+                                  }}
+                                >
+                                  {result.field}
+                                </span>
+                              )}
                             </div>
 
-                            {/* Title */}
+                            {/* TITLE */}
 
                             <div
                               style={{
                                 fontSize:
                                   '0.82rem',
-                                fontWeight: 650,
+                                fontWeight:
+                                  650,
                                 color:
                                   'var(--text)',
                                 marginBottom:
@@ -1538,7 +1885,7 @@ export default function DashboardLayout() {
                               }
                             </div>
 
-                            {/* Matching sentence */}
+                            {/* MATCHING SENTENCE */}
 
                             <div
                               style={{
@@ -1559,12 +1906,12 @@ export default function DashboardLayout() {
                               }}
                             >
                               {renderHighlightedText(
-                                result.content
+                                result.content,
                               )}
                             </div>
                           </div>
 
-                          {/* Arrow */}
+                          {/* ARROW */}
 
                           <ChevronRight
                             size={15}
@@ -1577,10 +1924,10 @@ export default function DashboardLayout() {
                           />
                         </button>
                       )
-                    }
+                    },
                   )}
 
-                  {/* Footer */}
+                  {/* FOOTER */}
 
                   {!searchLoading &&
                     searchResults.length >
@@ -1606,7 +1953,9 @@ export default function DashboardLayout() {
                         </span>
 
                         <span>
-                          {searchResults.length}{' '}
+                          {
+                            searchResults.length
+                          }{' '}
                           matches
                         </span>
                       </div>
@@ -1615,15 +1964,15 @@ export default function DashboardLayout() {
               )}
           </div>
 
+          {/* SPACER */}
+
           <div
             style={{
               flex: 1,
             }}
           />
 
-          {/* =================================================
-              NOTIFICATIONS
-          ================================================= */}
+          {/* NOTIFICATIONS */}
 
           <Link
             to={
@@ -1676,9 +2025,7 @@ export default function DashboardLayout() {
           </Link>
         </header>
 
-        {/* =================================================
-            CONTENT
-        ================================================= */}
+        {/* CONTENT */}
 
         <main
           style={{
@@ -1702,9 +2049,7 @@ export default function DashboardLayout() {
         </main>
       </div>
 
-      {/* =================================================
-          SPIN ANIMATION
-      ================================================= */}
+      {/* SPIN ANIMATION */}
 
       <style>
         {`
@@ -1720,18 +2065,5 @@ export default function DashboardLayout() {
         `}
       </style>
     </div>
-  )
-}
-
-// =====================================================
-// REGEX ESCAPE
-// =====================================================
-
-function escapeRegExp(
-  value: string
-) {
-  return value.replace(
-    /[.*+?^${}()|[\]\\]/g,
-    '\\$&'
   )
 }
