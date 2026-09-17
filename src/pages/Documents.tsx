@@ -867,14 +867,55 @@ export default function Documents() {
 
     const fileArray = Array.from(files);
 
+    // Only one file is allowed per upload action.
+    if (fileArray.length > 1) {
+      alert("Please upload one file at a time.");
+      return;
+    }
+
     const file = fileArray[0];
 
-    // 100 MB frontend check
-    const maxSize = 100 * 1024 * 1024;
+    // Maximum size: 10 MB per file.
+    const maxSize = 10 * 1024 * 1024;
 
     if (file.size > maxSize) {
       alert(
-        "File is too large. Maximum size is 100 MB."
+        "File is too large. Maximum size is 10 MB per file."
+      );
+      return;
+    }
+
+    // Allowed document/media types.
+    // These match the file types displayed in the Documents UI.
+    const allowedMimeTypes = new Set([
+      // PDF
+      "application/pdf",
+
+      // Images
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/webp",
+      "image/gif",
+
+      // Audio
+      "audio/mpeg",
+      "audio/mp3",
+      "audio/wav",
+      "audio/x-wav",
+      "audio/webm",
+      "audio/mp4",
+      "audio/x-m4a",
+
+      // Video
+      "video/mp4",
+      "video/quicktime",
+      "video/webm",
+    ]);
+
+    if (!allowedMimeTypes.has(file.type)) {
+      alert(
+        "Unsupported file type. Allowed: PDF, PNG, JPG, WEBP, GIF, MP3, WAV, M4A, MP4, MOV and WEBM."
       );
       return;
     }
@@ -901,7 +942,23 @@ export default function Documents() {
       return;
     }
 
+    // Defensive check: never send more than one file.
+    if (files.length > 1) {
+      alert("Please upload one file at a time.");
+      return;
+    }
+
     const file = files[0];
+
+    // Defensive size check before sending the request.
+    const maxSize = 10 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      alert(
+        "File is too large. Maximum size is 10 MB per file."
+      );
+      return;
+    }
 
     const formData = new FormData();
 
@@ -1841,7 +1898,7 @@ export default function Documents() {
           <input
             ref={fileRef}
             type="file"
-            accept=".pdf,.png,.jpg,.jpeg,.mp3,.wav,.webm,.m4a,.mp4,.mov"
+            accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.webm,.m4a,.mp4,.mov"
             style={{
               display: "none",
             }}
@@ -2053,9 +2110,9 @@ export default function Documents() {
             marginTop: 3,
           }}
         >
-          PDF, PNG, JPG, MP3,
-          WAV, M4A, MP4, MOV,
-          WEBM up to 100MB
+          PDF, PNG, JPG, WEBP, GIF, MP3,
+          WAV, M4A, MP4, MOV, WEBM
+          · Max 10MB per file
         </div>
       </div>
 

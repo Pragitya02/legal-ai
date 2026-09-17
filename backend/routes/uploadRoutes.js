@@ -21,7 +21,7 @@ const {
 const router = express.Router();
 
 const UPLOAD_DIR = path.join(__dirname, "..", "uploads");
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB per file
 
 // Make sure the upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -88,7 +88,8 @@ const upload = multer({
     storage,
 
     limits: {
-        fileSize: MAX_FILE_SIZE
+        fileSize: MAX_FILE_SIZE,
+        files: 1
     },
 
     fileFilter: function (req, file, cb) {
@@ -1258,7 +1259,15 @@ router.use((error, req, res, next) => {
             return res.status(413).json({
                 success: false,
                 message:
-                    "File is too large. Maximum allowed size is 100 MB."
+                    "File is too large. Maximum allowed size is 10 MB per file."
+            });
+        }
+
+        if (error.code === "LIMIT_FILE_COUNT") {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Only one file can be uploaded at a time."
             });
         }
 
