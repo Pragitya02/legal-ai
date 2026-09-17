@@ -163,7 +163,7 @@ async function extractImageWithGroq(
       await groq.chat.completions.create({
         model:
           process.env.GROQ_VISION_MODEL ||
-          "meta-llama/llama-4-scout-17b-16e-instruct",
+          "qwen/qwen3.6-27b",
 
         messages: [
           {
@@ -308,8 +308,8 @@ async function extractWithGeminiVision(
   */
 
   const modelsToTry = [
-    process.env.GEMINI_VISION_MODEL || "gemini-2.5-flash",
-    "gemini-2.5-flash",
+    process.env.GEMINI_VISION_MODEL || "gemini-3-flash",
+    "gemini-3-flash",
   ].filter(
     (value, index, array) =>
       value && array.indexOf(value) === index
