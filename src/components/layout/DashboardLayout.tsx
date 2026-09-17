@@ -213,6 +213,11 @@ export default function DashboardLayout() {
 
   const [search, setSearch] = useState('')
 
+  // Keep the search field read-only until the user explicitly focuses it.
+  // This prevents Chrome/password-manager autofill from injecting an
+  // email address into the global search field.
+  const [searchFocused, setSearchFocused] = useState(false)
+
   const [searchResults, setSearchResults] =
     useState<SearchResult[]>([])
 
@@ -1491,8 +1496,8 @@ export default function DashboardLayout() {
               }
               className="input"
               type="search"
-              name="global-search"
-              autoComplete="new-password"
+              autoComplete="off"
+              readOnly={!searchFocused}
               value={search}
               onChange={(
                 event,
@@ -1505,7 +1510,19 @@ export default function DashboardLayout() {
                   true,
                 )
               }}
-              onFocus={() => {
+              onFocus={(event) => {
+                // Clear any value that the browser may have injected
+                // before React received focus.
+                if (
+                  !search &&
+                  event.currentTarget.value
+                ) {
+                  event.currentTarget.value = ''
+                  setSearch('')
+                }
+
+                setSearchFocused(true)
+
                 if (
                   search.trim()
                     .length >= 2
@@ -1514,6 +1531,10 @@ export default function DashboardLayout() {
                     true,
                   )
                 }
+              }}
+              onBlur={() => {
+                // Return to read-only mode when the user leaves the field.
+                setSearchFocused(false)
               }}
               onKeyDown={
                 handleSearchKeyDown
@@ -1526,6 +1547,10 @@ export default function DashboardLayout() {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
+              data-form-type="other"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              aria-label="Global search"
               style={{
                 paddingLeft: 32,
                 paddingRight: 34,
