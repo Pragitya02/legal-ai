@@ -1,37 +1,31 @@
 // =====================================================
-// BLOCKCHAIN SERVICE (FOUNDATION)
+// BLOCKCHAIN SERVICE
 // =====================================================
 //
-// STEP 1 of the blockchain-based legal document integrity
-// system. This module is intentionally self-contained and
-// is NOT wired into any route yet.
+// Document integrity using:
+//   1. SHA-256 document fingerprinting
+//   2. EVM blockchain hash anchoring
+//   3. Blockchain verification
 //
-// What this module does:
-//   1. hashDocument(buffer)        -> SHA-256 hex digest
-//   2. anchorHashOnChain(hashHex)  -> sends the hash to an
-//                                     EVM-compatible chain,
-//                                     returns { txHash, ... }
-//   3. verifyHashOnChain(txHash)   -> reads a past transaction
-//                                     back and returns the hash
-//                                     that was anchored in it
+// IMPORTANT HASH FORMAT RULE
+// -----------------------------------------------------
+// Database:
+//     64-character SHA-256 hex string WITHOUT "0x"
 //
-// Design notes:
-//   - We only ever store a SHA-256 fingerprint of a document,
-//     never the document itself, on-chain.
-//   - The hash is embedded in the `data` field of a plain
-//     transaction sent from the configured wallet to itself
-//     (or to BLOCKCHAIN_TARGET_ADDRESS if set). This needs no
-//     smart contract deployment, keeping this foundation step
-//     minimal, while still giving an immutable, publicly
-//     verifiable transaction hash (txHash) per document.
-//   - All blockchain calls are guarded by validateBlockchainConfig()
-//     so that missing/incomplete configuration fails fast with
-//     a clear error instead of a confusing low-level error, and
-//     so the rest of the app is unaffected when the feature is
-//     left disabled (the default).
-//   - The private key is only ever read from process.env,
-//     only ever used in-memory to construct a signer, and is
-//     never logged or returned to any caller.
+// Blockchain:
+//     0x-prefixed 64-byte-hex representation
+//
+// Example:
+//
+// Database:
+//     43c861abc123...
+//
+// Blockchain:
+//     0x43c861abc123...
+//
+// This keeps the database document_hash compatible with
+// VARCHAR(64), while still using the correct EVM format
+// when communicating with the blockchain.
 // =====================================================
 
 const crypto = require("crypto");
@@ -45,10 +39,10 @@ const {
     validateBlockchainConfig,
 } = require("../utils/blockchainConfig");
 
-// ethers is only required lazily (inside functions) so that
-// simply requiring this file never fails even before the
-// dependency is installed or configured. This keeps Step 1
-// from having any side effect on app startup.
+// =====================================================
+// LOAD ETHERS LAZILY
+// =====================================================
+
 function loadEthers() {
     try {
         return require("ethers");
@@ -62,10 +56,20 @@ function loadEthers() {
 // =====================================================
 // 1. DOCUMENT HASHING
 // =====================================================
-// Accepts a Buffer (e.g. req.file.buffer from multer, or any
-// file content read from disk) and returns a SHA-256 hex
-// digest, prefixed with "0x" so it is ready to be embedded in
-// an EVM transaction's data field.
+//
+// Accepts a Buffer containing the raw document bytes.
+//
+// RETURNS:
+//     64-character SHA-256 hex digest
+//
+// IMPORTANT:
+//     NO "0x" PREFIX is returned here.
+//
+// Example:
+//     43c861abc123...
+//
+// The database stores this value directly in:
+//     documents.document_hash VARCHAR(64)
 // =====================================================
 
 function hashDocument(fileBuffer) {
@@ -80,15 +84,19 @@ function hashDocument(fileBuffer) {
         .update(fileBuffer)
         .digest("hex");
 
-    return `0x${digest}`;
+    // SHA-256 produces exactly 64 hexadecimal characters.
+    return digest;
 }
 
 // =====================================================
-// 2. CHAIN CLIENT (lazy singleton)
+// 2. CHAIN CLIENT
 // =====================================================
-// Builds an ethers provider + wallet from environment
-// variables. Throws a clear, non-sensitive error if the
-// configuration is missing or invalid.
+//
+// Creates an ethers wallet connected to the configured
+// blockchain RPC endpoint.
+//
+// The private key is never returned to the frontend or
+// logged.
 // =====================================================
 
 function getSigner() {
@@ -109,44 +117,58 @@ function getSigner() {
     const { ethers } = loadEthers();
 
     const provider = new ethers.JsonRpcProvider(getRpcUrl());
-    const wallet = new ethers.Wallet(getPrivateKey(), provider);
+
+    const wallet = new ethers.Wallet(
+        getPrivateKey(),
+        provider
+    );
 
     return wallet;
 }
 
 // =====================================================
-// 3. ANCHOR A HASH ON-CHAIN
+// 3. ANCHOR HASH ON-CHAIN
 // =====================================================
-// Sends a zero-value transaction whose `data` field carries
-// the document's SHA-256 hash. Returns the transaction hash
-// (the permanent, publicly verifiable pointer to this record)
-// once the transaction has been broadcast.
 //
-// documentHash: the "0x"-prefixed hex string from hashDocument().
-// Returns: { txHash, from, to, network }
+// documentHash MUST be:
+//     64 hexadecimal characters
+//
+// Example:
+//     43c861abc123...
+//
+// Before sending to EVM, we add "0x":
+//
+//     0x43c861abc123...
+//
+// Only the document hash is placed into transaction data.
+// The actual legal document is NEVER placed on-chain.
 // =====================================================
 
 async function anchorHashOnChain(documentHash) {
-    if (typeof documentHash !== "string" || !/^0x[0-9a-f]{64}$/i.test(documentHash)) {
+    if (
+        typeof documentHash !== "string" ||
+        !/^[0-9a-f]{64}$/i.test(documentHash)
+    ) {
         throw new Error(
-            "anchorHashOnChain expects a 0x-prefixed 32-byte SHA-256 hash string."
+            "anchorHashOnChain expects a 64-character SHA-256 hash without the 0x prefix."
         );
     }
 
     const wallet = getSigner();
-    const toAddress = getTargetAddress() || wallet.address;
+
+    const toAddress =
+        getTargetAddress() || wallet.address;
+
+    // Convert the database format into EVM hex format.
+    const blockchainData = `0x${documentHash}`;
 
     const tx = await wallet.sendTransaction({
         to: toAddress,
         value: 0,
-        data: documentHash,
+        data: blockchainData,
     });
 
-    // Wait for the transaction to be mined/confirmed so callers
-    // (Step 3) get back a settled result instead of a merely
-    // broadcast-but-unconfirmed transaction. `tx.wait()` resolves
-    // once the transaction has at least one confirmation on the
-    // configured testnet.
+    // Wait until the transaction is mined.
     const receipt = await tx.wait();
 
     return {
@@ -154,23 +176,40 @@ async function anchorHashOnChain(documentHash) {
         from: wallet.address,
         to: toAddress,
         network: getNetworkName() || "unknown",
-        confirmed: Boolean(receipt && receipt.status === 1),
-        blockNumber: (receipt && receipt.blockNumber) || null,
+        confirmed: Boolean(
+            receipt && receipt.status === 1
+        ),
+        blockNumber:
+            (receipt && receipt.blockNumber) || null,
     };
 }
 
 // =====================================================
-// 4. VERIFY A HASH ON-CHAIN
+// 4. VERIFY HASH ON-CHAIN
 // =====================================================
-// Looks up a previously-broadcast transaction by its hash and
-// returns the document hash that was embedded in its `data`
-// field, along with basic confirmation info. Callers can
-// compare the returned hash against a freshly computed
-// hashDocument() result to confirm document integrity.
+//
+// txHash is a normal Ethereum transaction hash:
+//
+//     0x + 64 hexadecimal characters
+//
+// The transaction data will contain:
+//
+//     0x + 64-character document hash
+//
+// We remove the "0x" prefix before returning the
+// documentHash so that the returned value has the SAME
+// format as hashDocument() and documents.document_hash.
+//
+// This makes comparison straightforward:
+//
+//     currentHash === blockchainHash
 // =====================================================
 
 async function verifyHashOnChain(txHash) {
-    if (typeof txHash !== "string" || !/^0x[0-9a-f]{64}$/i.test(txHash)) {
+    if (
+        typeof txHash !== "string" ||
+        !/^0x[0-9a-f]{64}$/i.test(txHash)
+    ) {
         throw new Error(
             "verifyHashOnChain expects a 0x-prefixed transaction hash."
         );
@@ -191,9 +230,12 @@ async function verifyHashOnChain(txHash) {
     }
 
     const { ethers } = loadEthers();
-    const provider = new ethers.JsonRpcProvider(getRpcUrl());
 
-    const tx = await provider.getTransaction(txHash);
+    const provider =
+        new ethers.JsonRpcProvider(getRpcUrl());
+
+    const tx =
+        await provider.getTransaction(txHash);
 
     if (!tx) {
         return {
@@ -203,13 +245,32 @@ async function verifyHashOnChain(txHash) {
         };
     }
 
-    const receipt = await provider.getTransactionReceipt(txHash);
+    const receipt =
+        await provider.getTransactionReceipt(txHash);
+
+    // Transaction data is expected to be:
+    //
+    // 0x + 64 hexadecimal characters
+    //
+    // Normalize it back to the database format.
+    const transactionData =
+        typeof tx.data === "string"
+            ? tx.data
+            : "";
+
+    const normalizedHash =
+        /^0x[0-9a-f]{64}$/i.test(transactionData)
+            ? transactionData.slice(2)
+            : null;
 
     return {
         found: true,
-        confirmed: Boolean(receipt && receipt.status === 1),
-        documentHash: tx.data,
-        blockNumber: tx.blockNumber || null,
+        confirmed: Boolean(
+            receipt && receipt.status === 1
+        ),
+        documentHash: normalizedHash,
+        blockNumber:
+            tx.blockNumber || null,
     };
 }
 
