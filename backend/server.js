@@ -149,10 +149,9 @@ app.use(
 // Required so authMiddleware / routes can read the
 // HttpOnly authentication cookies via req.cookies.
 // =====================================================
-app.use("/api/feedback", feedbackRoutes);
-
 app.use(cookieParser());
 
+app.use("/api/feedback", feedbackRoutes);
 // =====================================================
 // CORS CONFIGURATION
 // =====================================================
