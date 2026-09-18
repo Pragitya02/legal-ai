@@ -1,17 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
-  Activity,
-  Blocks,
-  FileCheck2,
-  FileText,
-  LogOut,
-  ShieldCheck,
   Users,
-  AlertTriangle,
-  LockKeyhole,
   Scale,
+  LogOut,
   Loader2,
+  ShieldCheck,
+  ArrowRight,
 } from 'lucide-react'
 
 import { clearStoredUser } from '../lib/auth'
@@ -32,146 +27,17 @@ interface AdminMeResponse {
   user?: AdminUser
 }
 
-interface StatCardProps {
-  title: string
-  value: string
-  description: string
-  icon: React.ReactNode
-}
-
-function StatCard({
-  title,
-  value,
-  description,
-  icon,
-}: StatCardProps) {
-  return (
-    <div
-      className="rounded-2xl p-5"
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-      }}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p
-            className="text-sm"
-            style={{
-              color: 'var(--text-muted)',
-            }}
-          >
-            {title}
-          </p>
-
-          <p
-            className="mt-2 text-3xl font-bold"
-            style={{
-              color: 'var(--text)',
-            }}
-          >
-            {value}
-          </p>
-
-          <p
-            className="mt-2 text-xs"
-            style={{
-              color: 'var(--text-muted)',
-            }}
-          >
-            {description}
-          </p>
-        </div>
-
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-          style={{
-            background:
-              'rgba(212,175,55,0.10)',
-            color: '#D4AF37',
-          }}
-        >
-          {icon}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-interface SecurityItemProps {
-  icon: React.ReactNode
-  title: string
-  description: string
-  status: string
-}
-
-function SecurityItem({
-  icon,
-  title,
-  description,
-  status,
-}: SecurityItemProps) {
-  return (
-    <div
-      className="flex items-center gap-4 rounded-2xl p-4"
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-      }}
-    >
-      <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-        style={{
-          background:
-            'rgba(212,175,55,0.08)',
-          color: '#D4AF37',
-        }}
-      >
-        {icon}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <p
-          className="font-medium"
-          style={{
-            color: 'var(--text)',
-          }}
-        >
-          {title}
-        </p>
-
-        <p
-          className="mt-1 text-xs"
-          style={{
-            color: 'var(--text-muted)',
-          }}
-        >
-          {description}
-        </p>
-      </div>
-
-      <span
-        className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold"
-        style={{
-          background:
-            'rgba(16,185,129,0.10)',
-          color: '#10B981',
-        }}
-      >
-        {status}
-      </span>
-    </div>
-  )
-}
-
 export default function AdminDashboard() {
   const navigate = useNavigate()
 
   const [user, setUser] =
     useState<AdminUser | null>(null)
 
-  const [loading, setLoading] = useState(true)
-  const [loggingOut, setLoggingOut] = useState(false)
+  const [loading, setLoading] =
+    useState(true)
+
+  const [loggingOut, setLoggingOut] =
+    useState(false)
 
   // =====================================================
   // VERIFY ADMIN SESSION
@@ -275,6 +141,18 @@ export default function AdminDashboard() {
   }
 
   // =====================================================
+  // MODULE NAVIGATION
+  // =====================================================
+
+  function openUsers() {
+    navigate('/admin/users')
+  }
+
+  function openAdvocates() {
+    navigate('/admin/advocates')
+  }
+
+  // =====================================================
   // LOADING
   // =====================================================
 
@@ -335,6 +213,8 @@ export default function AdminDashboard() {
         }}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
+          {/* BRAND */}
+
           <div className="flex items-center gap-3">
             <div
               className="flex h-10 w-10 items-center justify-center rounded-xl"
@@ -374,6 +254,8 @@ export default function AdminDashboard() {
               </p>
             </div>
           </div>
+
+          {/* ADMIN ACCOUNT */}
 
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
@@ -425,17 +307,17 @@ export default function AdminDashboard() {
       </header>
 
       {/* =================================================
-          CONTENT
+          MAIN CONTENT
       ================================================= */}
 
-      <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
+      <div className="mx-auto max-w-6xl px-5 py-10 lg:px-8">
 
-        {/* Welcome */}
+        {/* PAGE INTRO */}
 
-        <section className="mb-8">
+        <section className="mb-10">
           <div className="flex items-start gap-4">
             <div
-              className="mt-1 hidden h-12 w-1 rounded-full sm:block"
+              className="mt-1 hidden h-14 w-1 rounded-full sm:block"
               style={{
                 background: '#D4AF37',
               }}
@@ -448,7 +330,7 @@ export default function AdminDashboard() {
                   color: '#D4AF37',
                 }}
               >
-                Security & Governance
+                Administration
               </p>
 
               <h1
@@ -457,134 +339,28 @@ export default function AdminDashboard() {
                   color: 'var(--text)',
                 }}
               >
-                Administrator Dashboard
+                Nyaya AI Admin Portal
               </h1>
 
               <p
-                className="mt-2 max-w-2xl text-sm leading-6"
+                className="mt-3 max-w-2xl text-sm leading-6"
                 style={{
                   color: 'var(--text-muted)',
                 }}
               >
-                Monitor Nyaya AI platform security,
-                document integrity, users, and
-                administrative activity from one place.
+                Manage platform users and advocates
+                from one secure administrative workspace.
               </p>
             </div>
           </div>
         </section>
 
         {/* =================================================
-            OVERVIEW CARDS
+            TWO MAIN MODULES
         ================================================= */}
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            title="Platform Users"
-            value="—"
-            description="Connect user analytics next"
-            icon={<Users size={21} />}
-          />
-
-          <StatCard
-            title="Documents"
-            value="—"
-            description="Connect document analytics next"
-            icon={<FileText size={21} />}
-          />
-
-          <StatCard
-            title="Audit Events"
-            value="—"
-            description="Audit activity module"
-            icon={<Activity size={21} />}
-          />
-
-          <StatCard
-            title="Blockchain"
-            value="Active"
-            description="Document integrity layer"
-            icon={<Blocks size={21} />}
-          />
-        </section>
-
-        {/* =================================================
-            SECURITY STATUS
-        ================================================= */}
-
-        <section className="mt-8">
-          <div className="mb-4">
-            <h2
-              className="text-xl font-semibold"
-              style={{
-                color: 'var(--text)',
-              }}
-            >
-              Security Status
-            </h2>
-
-            <p
-              className="mt-1 text-sm"
-              style={{
-                color: 'var(--text-muted)',
-              }}
-            >
-              Current protection layers configured
-              for the platform.
-            </p>
-          </div>
-
-          <div className="grid gap-3 lg:grid-cols-2">
-            <SecurityItem
-              icon={<LockKeyhole size={19} />}
-              title="Authentication"
-              description="JWT sessions with protected cookies"
-              status="Enabled"
-            />
-
-            <SecurityItem
-              icon={<ShieldCheck size={19} />}
-              title="Role-Based Access"
-              description="Administrator role enforced server-side"
-              status="Enabled"
-            />
-
-            <SecurityItem
-              icon={<FileCheck2 size={19} />}
-              title="Document Integrity"
-              description="SHA-256 document hashing"
-              status="Enabled"
-            />
-
-            <SecurityItem
-              icon={<Blocks size={19} />}
-              title="Blockchain Verification"
-              description="Hash anchoring and integrity verification"
-              status="Enabled"
-            />
-
-            <SecurityItem
-              icon={<Activity size={19} />}
-              title="Audit Trail"
-              description="Administrative and document activity logging"
-              status="Enabled"
-            />
-
-            <SecurityItem
-              icon={<AlertTriangle size={19} />}
-              title="Security Monitoring"
-              description="Security events and governance controls"
-              status="Ready"
-            />
-          </div>
-        </section>
-
-        {/* =================================================
-            ADMIN MODULES
-        ================================================= */}
-
-        <section className="mt-8">
-          <div className="mb-4">
+        <section>
+          <div className="mb-5">
             <h2
               className="text-xl font-semibold"
               style={{
@@ -600,227 +376,164 @@ export default function AdminDashboard() {
                 color: 'var(--text-muted)',
               }}
             >
-              Security and governance modules.
+              Select a category to inspect and manage
+              individual accounts.
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2">
+
+            {/* =================================================
+                USERS
+            ================================================= */}
 
             <button
               type="button"
-              className="rounded-2xl p-5 text-left transition-transform hover:-translate-y-0.5"
+              onClick={openUsers}
+              className="group rounded-3xl p-7 text-left transition-all duration-200 hover:-translate-y-1"
               style={{
                 background: 'var(--bg-card)',
                 border:
                   '1px solid var(--border)',
               }}
             >
-              <Users
-                size={22}
-                style={{
-                  color: '#D4AF37',
-                }}
-              />
+              <div className="flex items-start justify-between gap-5">
+                <div
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl"
+                  style={{
+                    background:
+                      'rgba(212,175,55,0.10)',
+                    color: '#D4AF37',
+                  }}
+                >
+                  <Users size={27} />
+                </div>
+
+                <ArrowRight
+                  size={21}
+                  className="mt-2 transition-transform duration-200 group-hover:translate-x-1"
+                  style={{
+                    color: 'var(--text-muted)',
+                  }}
+                />
+              </div>
 
               <h3
-                className="mt-4 font-semibold"
+                className="mt-7 text-2xl font-semibold"
                 style={{
                   color: 'var(--text)',
                 }}
               >
-                User Management
+                Users
               </h3>
 
               <p
-                className="mt-1 text-xs leading-5"
+                className="mt-2 max-w-md text-sm leading-6"
                 style={{
                   color: 'var(--text-muted)',
                 }}
               >
-                Review platform users and roles.
+                View and inspect registered citizen
+                accounts, their profiles, documents,
+                activity, security information, and
+                individual audit history.
               </p>
+
+              <div
+                className="mt-6 flex items-center gap-2 text-sm font-semibold"
+                style={{
+                  color: '#D4AF37',
+                }}
+              >
+                <span>
+                  Manage users
+                </span>
+
+                <ArrowRight
+                  size={16}
+                  className="transition-transform duration-200 group-hover:translate-x-1"
+                />
+              </div>
             </button>
 
+            {/* =================================================
+                ADVOCATES
+            ================================================= */}
+
             <button
               type="button"
-              className="rounded-2xl p-5 text-left transition-transform hover:-translate-y-0.5"
+              onClick={openAdvocates}
+              className="group rounded-3xl p-7 text-left transition-all duration-200 hover:-translate-y-1"
               style={{
                 background: 'var(--bg-card)',
                 border:
                   '1px solid var(--border)',
               }}
             >
-              <Activity
-                size={22}
-                style={{
-                  color: '#D4AF37',
-                }}
-              />
+              <div className="flex items-start justify-between gap-5">
+                <div
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl"
+                  style={{
+                    background:
+                      'rgba(212,175,55,0.10)',
+                    color: '#D4AF37',
+                  }}
+                >
+                  <Scale size={27} />
+                </div>
+
+                <ArrowRight
+                  size={21}
+                  className="mt-2 transition-transform duration-200 group-hover:translate-x-1"
+                  style={{
+                    color: 'var(--text-muted)',
+                  }}
+                />
+              </div>
 
               <h3
-                className="mt-4 font-semibold"
+                className="mt-7 text-2xl font-semibold"
                 style={{
                   color: 'var(--text)',
                 }}
               >
-                Audit Trail
+                Advocates
               </h3>
 
               <p
-                className="mt-1 text-xs leading-5"
+                className="mt-2 max-w-md text-sm leading-6"
                 style={{
                   color: 'var(--text-muted)',
                 }}
               >
-                Review document and security activity.
+                View and inspect advocate accounts,
+                professional profiles, documents,
+                consultations, activity, security
+                information, and individual audit history.
               </p>
-            </button>
 
-            <button
-              type="button"
-              className="rounded-2xl p-5 text-left transition-transform hover:-translate-y-0.5"
-              style={{
-                background: 'var(--bg-card)',
-                border:
-                  '1px solid var(--border)',
-              }}
-            >
-              <FileCheck2
-                size={22}
+              <div
+                className="mt-6 flex items-center gap-2 text-sm font-semibold"
                 style={{
                   color: '#D4AF37',
                 }}
-              />
-
-              <h3
-                className="mt-4 font-semibold"
-                style={{
-                  color: 'var(--text)',
-                }}
               >
-                Document Security
-              </h3>
+                <span>
+                  Manage advocates
+                </span>
 
-              <p
-                className="mt-1 text-xs leading-5"
-                style={{
-                  color: 'var(--text-muted)',
-                }}
-              >
-                Monitor protected documents and integrity.
-              </p>
-            </button>
-
-            <button
-              type="button"
-              className="rounded-2xl p-5 text-left transition-transform hover:-translate-y-0.5"
-              style={{
-                background: 'var(--bg-card)',
-                border:
-                  '1px solid var(--border)',
-              }}
-            >
-              <Blocks
-                size={22}
-                style={{
-                  color: '#D4AF37',
-                }}
-              />
-
-              <h3
-                className="mt-4 font-semibold"
-                style={{
-                  color: 'var(--text)',
-                }}
-              >
-                Blockchain
-              </h3>
-
-              <p
-                className="mt-1 text-xs leading-5"
-                style={{
-                  color: 'var(--text-muted)',
-                }}
-              >
-                Check blockchain registrations and verification.
-              </p>
-            </button>
-
-            <button
-              type="button"
-              className="rounded-2xl p-5 text-left transition-transform hover:-translate-y-0.5"
-              style={{
-                background: 'var(--bg-card)',
-                border:
-                  '1px solid var(--border)',
-              }}
-            >
-              <ShieldCheck
-                size={22}
-                style={{
-                  color: '#D4AF37',
-                }}
-              />
-
-              <h3
-                className="mt-4 font-semibold"
-                style={{
-                  color: 'var(--text)',
-                }}
-              >
-                Security Events
-              </h3>
-
-              <p
-                className="mt-1 text-xs leading-5"
-                style={{
-                  color: 'var(--text-muted)',
-                }}
-              >
-                Investigate authentication and security events.
-              </p>
-            </button>
-
-            <button
-              type="button"
-              className="rounded-2xl p-5 text-left transition-transform hover:-translate-y-0.5"
-              style={{
-                background: 'var(--bg-card)',
-                border:
-                  '1px solid var(--border)',
-              }}
-            >
-              <Scale
-                size={22}
-                style={{
-                  color: '#D4AF37',
-                }}
-              />
-
-              <h3
-                className="mt-4 font-semibold"
-                style={{
-                  color: 'var(--text)',
-                }}
-              >
-                Governance
-              </h3>
-
-              <p
-                className="mt-1 text-xs leading-5"
-                style={{
-                  color: 'var(--text-muted)',
-                }}
-              >
-                Administrative controls and platform policies.
-              </p>
+                <ArrowRight
+                  size={16}
+                  className="transition-transform duration-200 group-hover:translate-x-1"
+                />
+              </div>
             </button>
 
           </div>
         </section>
 
         {/* =================================================
-            ADMIN ACCESS NOTICE
+            SECURITY NOTICE
         ================================================= */}
 
         <section
@@ -857,14 +570,15 @@ export default function AdminDashboard() {
                   color: 'var(--text-muted)',
                 }}
               >
-                Access to this dashboard is verified
-                against the server-side administrator
+                Administrator access is verified
+                server-side using the administrator
                 role. The frontend does not determine
                 administrator privileges.
               </p>
             </div>
           </div>
         </section>
+
       </div>
     </main>
   )
