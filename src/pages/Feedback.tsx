@@ -223,16 +223,19 @@ export default function Feedback() {
                     <p className="mt-3 text-gray-400">
                         Your consultation feedback has been submitted successfully.
                     </p>
-
-                    <button
-                        type="button"
-                        onClick={() => {
-                            window.location.href = "/dashboard";
-                        }}
-                        className="mt-7 rounded-xl bg-yellow-500 px-6 py-3 font-semibold text-black hover:bg-yellow-400"
-                    >
-                        Continue
-                    </button>
+<button
+    type="button"
+    onClick={() => {
+        if (form?.reviewerRole === "advocate") {
+            window.location.href = "/advocate/meetings";
+        } else {
+            window.location.href = "/dashboard/meetings";
+        }
+    }}
+    className="mt-7 rounded-xl bg-yellow-500 px-6 py-3 font-semibold text-black hover:bg-yellow-400"
+>
+    Continue
+</button>
                 </div>
             </div>
         );
