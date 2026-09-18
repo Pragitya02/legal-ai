@@ -186,7 +186,8 @@ export default function AdvocateDashboard() {
             setStoredUser(data.user)
 
             // Load the real advocate rating and review count.
-            // The backend summary only includes citizen -> advocate ratings.
+            // We first use the existing summary endpoint. The response
+            // parser accepts the common field names used by the backend.
             const advocateId = Number(data.user.id)
 
             if (Number.isInteger(advocateId) && advocateId > 0) {
@@ -204,30 +205,97 @@ export default function AdvocateDashboard() {
 
                 const ratingData = await ratingResponse.json()
 
-                if (
-                  ratingResponse.ok &&
-                  ratingData?.success
-                ) {
+                if (ratingResponse.ok && ratingData?.success) {
                   const averageRating = Number(
-                    ratingData.averageRating
-                  )
-                  const reviewCount = Number(
-                    ratingData.reviewCount
+                    ratingData.averageRating ??
+                    ratingData.average_rating ??
+                    ratingData.average ??
+                    ratingData.data?.averageRating ??
+                    ratingData.data?.average_rating ??
+                    ratingData.data?.average
                   )
 
-                  setStats(previous => ({
-                    ...previous,
-                    rating:
-                      reviewCount > 0 &&
-                      Number.isFinite(averageRating)
-                        ? `${averageRating.toFixed(1)} (${reviewCount})`
-                        : '— (0)',
-                  }))
+                  const reviewCount = Number(
+                    ratingData.reviewCount ??
+                    ratingData.review_count ??
+                    ratingData.totalReviews ??
+                    ratingData.total_reviews ??
+                    ratingData.count ??
+                    ratingData.data?.reviewCount ??
+                    ratingData.data?.review_count ??
+                    ratingData.data?.totalReviews ??
+                    ratingData.data?.total_reviews ??
+                    ratingData.data?.count
+                  )
+
+                  if (
+                    Number.isFinite(averageRating) &&
+                    Number.isFinite(reviewCount) &&
+                    reviewCount > 0
+                  ) {
+                    setStats(previous => ({
+                      ...previous,
+                      rating: `${averageRating.toFixed(1)} (${reviewCount})`,
+                    }))
+                  } else {
+                    setStats(previous => ({
+                      ...previous,
+                      rating: '— (0)',
+                    }))
+                  }
                 } else {
-                  setStats(previous => ({
-                    ...previous,
-                    rating: '— (0)',
-                  }))
+                  // If the summary response is unavailable or has an
+                  // unexpected shape, use the reviews endpoint as a
+                  // reliable fallback and calculate the value here.
+                  const reviewsResponse = await fetch(
+                    `${API_URL}/api/feedback/advocates/${advocateId}/reviews`,
+                    {
+                      method: 'GET',
+                      credentials: 'include',
+                      headers: {
+                        Accept: 'application/json',
+                      },
+                    }
+                  )
+
+                  const reviewsData = await reviewsResponse.json()
+
+                  const reviews = Array.isArray(reviewsData)
+                    ? reviewsData
+                    : Array.isArray(reviewsData?.reviews)
+                      ? reviewsData.reviews
+                      : Array.isArray(reviewsData?.data?.reviews)
+                        ? reviewsData.data.reviews
+                        : []
+
+                  const ratings = reviews
+                    .map((review: any) =>
+                      Number(review?.rating ?? review?.stars)
+                    )
+                    .filter(
+                      (rating: number) =>
+                        Number.isFinite(rating) &&
+                        rating >= 1 &&
+                        rating <= 5
+                    )
+
+                  if (ratings.length > 0) {
+                    const averageRating =
+                      ratings.reduce(
+                        (sum: number, rating: number) => sum + rating,
+                        0
+                      ) / ratings.length
+
+                    setStats(previous => ({
+                      ...previous,
+                      rating: `${averageRating.toFixed(1)} (${ratings.length})`,
+                    }))
+                  } else {
+                    setStats(previous => ({
+                      ...previous,
+                      rating: '— (0)',
+                    }))
+                  }
                 }
               } catch (ratingError) {
                 console.error(
@@ -235,6 +303,7 @@ export default function AdvocateDashboard() {
                   ratingError
                 )
 
+                // Do not display a fake rating when the API fails.
                 setStats(previous => ({
                   ...previous,
                   rating: '— (0)',
