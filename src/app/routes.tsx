@@ -1,5 +1,8 @@
 import { createBrowserRouter } from 'react-router'
 
+import AdminLogin from '../pages/AdminLogin'
+import AdminDashboard from '../pages/AdminDashboard'
+
 import RootLayout from '../components/layout/RootLayout'
 import DashboardLayout from '../components/layout/DashboardLayout'
 
@@ -43,14 +46,27 @@ export const router = createBrowserRouter([
 
   {
     Component: RootLayout,
+
     children: [
-      { index: true, Component: Landing },
+      {
+        index: true,
+        Component: Landing,
+      },
 
-      { path: 'login', Component: Login },
+      {
+        path: 'login',
+        Component: Login,
+      },
 
-      { path: 'advocate-login', Component: Login },
+      {
+        path: 'advocate-login',
+        Component: Login,
+      },
 
-      { path: 'signup', Component: Login },
+      {
+        path: 'signup',
+        Component: Login,
+      },
     ],
   },
 
@@ -63,33 +79,72 @@ export const router = createBrowserRouter([
     Component: DashboardLayout,
 
     children: [
-      { index: true, Component: CitizenDashboard },
+      {
+        index: true,
+        Component: CitizenDashboard,
+      },
 
-      { path: 'ai-assistant', Component: AIAssistant },
+      {
+        path: 'ai-assistant',
+        Component: AIAssistant,
+      },
 
-      { path: 'advocates', Component: AdvocateListing },
+      {
+        path: 'advocates',
+        Component: AdvocateListing,
+      },
 
-      { path: 'booking', Component: Booking },
+      {
+        path: 'booking',
+        Component: Booking,
+      },
 
       // Citizen meetings
-      { path: 'meetings', Component: Meetings },
+      {
+        path: 'meetings',
+        Component: Meetings,
+      },
 
-      { path: 'profile', Component: Profile },
+      {
+        path: 'profile',
+        Component: Profile,
+      },
 
-      { path: 'cases', Component: Cases },
+      {
+        path: 'cases',
+        Component: Cases,
+      },
 
-      { path: 'cases/:caseId', Component: CaseWorkspace },
+      {
+        path: 'cases/:caseId',
+        Component: CaseWorkspace,
+      },
 
-      { path: 'new-case', Component: NewCase },
+      {
+        path: 'new-case',
+        Component: NewCase,
+      },
 
-      { path: 'documents', Component: Documents },
+      {
+        path: 'documents',
+        Component: Documents,
+      },
 
       // Citizen booking status
-      { path: 'bookings', Component: YourBookings },
+      {
+        path: 'bookings',
+        Component: YourBookings,
+      },
 
-      { path: 'notifications', Component: Notifications },
+      {
+        path: 'notifications',
+        Component: Notifications,
+      },
 
-      { path: 'settings', Component: Settings },
+      {
+        path: 'settings',
+        Component: Settings,
+      },
     ],
   },
 
@@ -102,35 +157,71 @@ export const router = createBrowserRouter([
     Component: DashboardLayout,
 
     children: [
-      { index: true, Component: AdvocateDashboard },
+      {
+        index: true,
+        Component: AdvocateDashboard,
+      },
 
-      { path: 'appointments', Component: AdvocateAppointments },
+      {
+        path: 'appointments',
+        Component: AdvocateAppointments,
+      },
 
-      { path: 'clients', Component: AdvocateClients },
+      {
+        path: 'clients',
+        Component: AdvocateClients,
+      },
 
       {
         path: 'consultation-requests',
         Component: AdvocateConsultationRequests,
       },
 
-      { path: 'availability', Component: AdvocateAvailability },
+      {
+        path: 'availability',
+        Component: AdvocateAvailability,
+      },
 
       // Advocate meetings
-      { path: 'meetings', Component: AdvocateMeetings },
+      {
+        path: 'meetings',
+        Component: AdvocateMeetings,
+      },
 
-      { path: 'ai-research', Component: AIResearch },
+      {
+        path: 'ai-research',
+        Component: AIResearch,
+      },
 
-      { path: 'profile', Component: Profile },
+      {
+        path: 'profile',
+        Component: Profile,
+      },
 
-      { path: 'documents', Component: Documents },
+      {
+        path: 'documents',
+        Component: Documents,
+      },
 
-      { path: 'earnings', Component: AdvocateEarnings },
+      {
+        path: 'earnings',
+        Component: AdvocateEarnings,
+      },
 
-      { path: 'analytics', Component: AdvocateAnalytics },
+      {
+        path: 'analytics',
+        Component: AdvocateAnalytics,
+      },
 
-      { path: 'settings', Component: Settings },
+      {
+        path: 'settings',
+        Component: Settings,
+      },
 
-      { path: 'notifications', Component: Notifications },
+      {
+        path: 'notifications',
+        Component: Notifications,
+      },
     ],
   },
 
@@ -171,6 +262,35 @@ export const router = createBrowserRouter([
   {
     path: 'feedback',
     Component: Feedback,
+  },
+
+  // =====================================================
+  // ADMINISTRATOR PORTAL
+  // =====================================================
+  //
+  // Login:
+  // /admin
+  //
+  // Dashboard:
+  // /admin/dashboard
+  //
+  // The AdminDashboard independently verifies the
+  // authenticated administrator session through:
+  //
+  // GET /api/admin/me
+  //
+  // Backend role authorization remains the real
+  // security boundary.
+  // =====================================================
+
+  {
+    path: 'admin',
+    Component: AdminLogin,
+  },
+
+  {
+    path: 'admin/dashboard',
+    Component: AdminDashboard,
   },
 
   // =====================================================
