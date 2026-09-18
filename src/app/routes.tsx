@@ -4,6 +4,8 @@ import AdminLogin from '../pages/AdminLogin'
 import AdminDashboard from '../pages/AdminDashboard'
 import AdminUsers from '../pages/admin/AdminUsers'
 import AdminAdvocates from '../pages/admin/AdminAdvocates'
+import AdminUserDetail from '../pages/admin/AdminUserDetail'
+import AdminAdvocateDetail from '../pages/admin/AdminAdvocateDetail'
 
 import RootLayout from '../components/layout/RootLayout'
 import DashboardLayout from '../components/layout/DashboardLayout'
@@ -263,18 +265,40 @@ export const router = createBrowserRouter([
     Component: AdminDashboard,
   },
 
-  // Admin users
+  // =====================================================
+  // ADMIN USERS
+  // =====================================================
+
+  // User list
   // /admin/users
   {
     path: 'admin/users',
     Component: AdminUsers,
   },
 
-  // Admin advocates
+  // Individual user
+  // /admin/users/:userId
+  {
+    path: 'admin/users/:userId',
+    Component: AdminUserDetail,
+  },
+
+  // =====================================================
+  // ADMIN ADVOCATES
+  // =====================================================
+
+  // Advocate list
   // /admin/advocates
   {
     path: 'admin/advocates',
     Component: AdminAdvocates,
+  },
+
+  // Individual advocate
+  // /admin/advocates/:advocateId
+  {
+    path: 'admin/advocates/:advocateId',
+    Component: AdminAdvocateDetail,
   },
 
   // =====================================================
@@ -285,4 +309,4 @@ export const router = createBrowserRouter([
     path: '*',
     Component: NotFound,
   },
-])
+]) 
