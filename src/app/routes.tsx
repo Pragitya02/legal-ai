@@ -251,15 +251,33 @@ export const router = createBrowserRouter([
   // ADMINISTRATOR PORTAL
   // =====================================================
 
-  // Admin login
-  // /admin
+  // -----------------------------------------------------
+  // ADMIN LOGIN
+  // /adminlogin
+  // -----------------------------------------------------
+
   {
-    path: 'admin',
+    path: 'adminlogin',
     Component: AdminLogin,
   },
 
-  // Admin main dashboard
+  // -----------------------------------------------------
+  // ADMIN DASHBOARD
+  // /admin
+  // -----------------------------------------------------
+
+  {
+    path: 'admin',
+    Component: AdminDashboard,
+  },
+
+  // -----------------------------------------------------
+  // LEGACY ADMIN DASHBOARD URL
   // /admin/dashboard
+  // -----------------------------------------------------
+
+  // Kept for compatibility with any existing links.
+  // AdminDashboard itself verifies the admin session.
   {
     path: 'admin/dashboard',
     Component: AdminDashboard,
@@ -309,4 +327,4 @@ export const router = createBrowserRouter([
     path: '*',
     Component: NotFound,
   },
-]) 
+])

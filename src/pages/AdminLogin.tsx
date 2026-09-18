@@ -22,6 +22,7 @@ const API_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:5001'
 
 type AdminUser = StoredUser
+
 interface AdminMeResponse {
   success?: boolean
   user?: AdminUser
@@ -71,7 +72,7 @@ export default function AdminLogin() {
           setStoredUser(data.user)
 
           if (!cancelled) {
-            navigate('/admin/dashboard', {
+            navigate('/admin', {
               replace: true,
             })
           }
@@ -181,7 +182,7 @@ export default function AdminLogin() {
       // Refresh/read the CSRF token after login.
       await ensureCsrfToken(true)
 
-      navigate('/admin/dashboard', {
+      navigate('/admin', {
         replace: true,
       })
     } catch (error) {

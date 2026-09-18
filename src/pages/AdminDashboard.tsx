@@ -87,7 +87,7 @@ export default function AdminDashboard() {
         clearStoredUser()
 
         if (!cancelled) {
-          navigate('/admin', {
+          navigate('/adminlogin', {
             replace: true,
           })
         }
@@ -132,7 +132,7 @@ export default function AdminDashboard() {
     } finally {
       clearStoredUser()
 
-      navigate('/admin', {
+      navigate('/adminlogin', {
         replace: true,
       })
 
@@ -213,6 +213,7 @@ export default function AdminDashboard() {
         }}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
+
           {/* BRAND */}
 
           <div className="flex items-center gap-3">
