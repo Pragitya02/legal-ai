@@ -1850,7 +1850,12 @@ if (
                     setIncomingEndRequest(false);
                     setShowEndOptions(false);
                     cleanupCall();
-                    window.location.href = "/dashboard/meetings";
+
+                    // After permanent approval, both participants go through
+                    // the feedback flow. Feedback.tsx redirects each role
+                    // to the correct meetings page afterward.
+                    window.location.href =
+                        `/feedback?appointmentId=${encodeURIComponent(appointmentId)}`;
                 } catch (err) {
                     console.error("Approve permanent end error:", err);
                     setError(
