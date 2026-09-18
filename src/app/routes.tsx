@@ -1,5 +1,12 @@
 import { createBrowserRouter } from 'react-router'
 
+import AdminLogin from '../pages/AdminLogin'
+import AdminDashboard from '../pages/AdminDashboard'
+import AdminUsers from '../pages/admin/AdminUsers'
+import AdminAdvocates from '../pages/admin/AdminAdvocates'
+import AdminUserDetail from '../pages/admin/AdminUserDetail'
+import AdminAdvocateDetail from '../pages/admin/AdminAdvocateDetail'
+
 import RootLayout from '../components/layout/RootLayout'
 import DashboardLayout from '../components/layout/DashboardLayout'
 
@@ -32,6 +39,8 @@ import AIResearch from '../pages/AIResearch'
 import AdvocateEarnings from '../pages/advocate/Earnings'
 import AdvocateAnalytics from '../pages/advocate/Analytics'
 
+import Feedback from '../pages/Feedback'
+
 import NotFound from '../pages/NotFound'
 
 export const router = createBrowserRouter([
@@ -41,14 +50,27 @@ export const router = createBrowserRouter([
 
   {
     Component: RootLayout,
+
     children: [
-      { index: true, Component: Landing },
+      {
+        index: true,
+        Component: Landing,
+      },
 
-      { path: 'login', Component: Login },
+      {
+        path: 'login',
+        Component: Login,
+      },
 
-      { path: 'advocate-login', Component: Login },
+      {
+        path: 'advocate-login',
+        Component: Login,
+      },
 
-      { path: 'signup', Component: Login },
+      {
+        path: 'signup',
+        Component: Login,
+      },
     ],
   },
 
@@ -61,33 +83,72 @@ export const router = createBrowserRouter([
     Component: DashboardLayout,
 
     children: [
-      { index: true, Component: CitizenDashboard },
+      {
+        index: true,
+        Component: CitizenDashboard,
+      },
 
-      { path: 'ai-assistant', Component: AIAssistant },
+      {
+        path: 'ai-assistant',
+        Component: AIAssistant,
+      },
 
-      { path: 'advocates', Component: AdvocateListing },
+      {
+        path: 'advocates',
+        Component: AdvocateListing,
+      },
 
-      { path: 'booking', Component: Booking },
+      {
+        path: 'booking',
+        Component: Booking,
+      },
 
       // Citizen meetings
-      { path: 'meetings', Component: Meetings },
+      {
+        path: 'meetings',
+        Component: Meetings,
+      },
 
-      { path: 'profile', Component: Profile },
+      {
+        path: 'profile',
+        Component: Profile,
+      },
 
-      { path: 'cases', Component: Cases },
+      {
+        path: 'cases',
+        Component: Cases,
+      },
 
-      { path: 'cases/:caseId', Component: CaseWorkspace },
+      {
+        path: 'cases/:caseId',
+        Component: CaseWorkspace,
+      },
 
-      { path: 'new-case', Component: NewCase },
+      {
+        path: 'new-case',
+        Component: NewCase,
+      },
 
-      { path: 'documents', Component: Documents },
+      {
+        path: 'documents',
+        Component: Documents,
+      },
 
       // Citizen booking status
-      { path: 'bookings', Component: YourBookings },
+      {
+        path: 'bookings',
+        Component: YourBookings,
+      },
 
-      { path: 'notifications', Component: Notifications },
+      {
+        path: 'notifications',
+        Component: Notifications,
+      },
 
-      { path: 'settings', Component: Settings },
+      {
+        path: 'settings',
+        Component: Settings,
+      },
     ],
   },
 
@@ -100,58 +161,144 @@ export const router = createBrowserRouter([
     Component: DashboardLayout,
 
     children: [
-      { index: true, Component: AdvocateDashboard },
+      {
+        index: true,
+        Component: AdvocateDashboard,
+      },
 
-      { path: 'appointments', Component: AdvocateAppointments },
+      {
+        path: 'appointments',
+        Component: AdvocateAppointments,
+      },
 
-      { path: 'clients', Component: AdvocateClients },
+      {
+        path: 'clients',
+        Component: AdvocateClients,
+      },
 
       {
         path: 'consultation-requests',
         Component: AdvocateConsultationRequests,
       },
 
-      { path: 'availability', Component: AdvocateAvailability },
+      {
+        path: 'availability',
+        Component: AdvocateAvailability,
+      },
 
       // Advocate meetings
-      { path: 'meetings', Component: AdvocateMeetings },
+      {
+        path: 'meetings',
+        Component: AdvocateMeetings,
+      },
 
-      { path: 'ai-research', Component: AIResearch },
+      {
+        path: 'ai-research',
+        Component: AIResearch,
+      },
 
-      { path: 'profile', Component: Profile },
+      {
+        path: 'profile',
+        Component: Profile,
+      },
 
-      { path: 'documents', Component: Documents },
+      {
+        path: 'documents',
+        Component: Documents,
+      },
 
-      { path: 'earnings', Component: AdvocateEarnings },
+      {
+        path: 'earnings',
+        Component: AdvocateEarnings,
+      },
 
-      { path: 'analytics', Component: AdvocateAnalytics },
+      {
+        path: 'analytics',
+        Component: AdvocateAnalytics,
+      },
 
-      { path: 'settings', Component: Settings },
+      {
+        path: 'settings',
+        Component: Settings,
+      },
 
-      { path: 'notifications', Component: Notifications },
+      {
+        path: 'notifications',
+        Component: Notifications,
+      },
     ],
   },
 
   // =====================================================
   // VIDEO CONSULTATION
   // =====================================================
-  //
-  // This is intentionally outside DashboardLayout.
-  //
-  // URL:
-  // /meeting/:appointmentId
-  //
-  // Example:
-  // /meeting/123
-  //
-  // Both citizen and advocate use the same Meeting page.
-  // Their permissions/role are determined from the
-  // authenticated meeting information.
-  // =====================================================
 
   {
     path: 'meeting/:appointmentId',
     Component: Meeting,
+  },
+
+  // =====================================================
+  // MANDATORY MEETING FEEDBACK
+  // =====================================================
+
+  {
+    path: 'feedback',
+    Component: Feedback,
+  },
+
+  // =====================================================
+  // ADMINISTRATOR PORTAL
+  // =====================================================
+
+  // Admin login
+  // /admin
+  {
+    path: 'admin',
+    Component: AdminLogin,
+  },
+
+  // Admin main dashboard
+  // /admin/dashboard
+  {
+    path: 'admin/dashboard',
+    Component: AdminDashboard,
+  },
+
+  // =====================================================
+  // ADMIN USERS
+  // =====================================================
+
+  // User list
+  // /admin/users
+  {
+    path: 'admin/users',
+    Component: AdminUsers,
+  },
+
+  // Individual user
+  // /admin/users/:userId
+  {
+    path: 'admin/users/:userId',
+    Component: AdminUserDetail,
+  },
+
+  // =====================================================
+  // ADMIN ADVOCATES
+  // =====================================================
+
+  // Advocate list
+  // /admin/advocates
+  {
+    path: 'admin/advocates',
+    Component: AdminAdvocates,
+  },
+
+  // Individual advocate
+  // /admin/advocates/:advocateId
+  {
+    path: 'admin/advocates/:advocateId',
+    Component: AdminAdvocateDetail,
   },
 
   // =====================================================
@@ -162,4 +309,4 @@ export const router = createBrowserRouter([
     path: '*',
     Component: NotFound,
   },
-])
+]) 

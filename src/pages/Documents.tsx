@@ -13,6 +13,7 @@ import {
   Info,
   Copy,
   ExternalLink,
+  Clock,
 } from "lucide-react";
 
 interface Doc {
@@ -26,6 +27,18 @@ interface Doc {
   blockchainTxHash?: string | null;
   blockchainStatus?: string | null;
   blockchainNetwork?: string | null;
+}
+
+// Audit Trail (Step 4) — one entry returned by
+// GET /api/documents/:id/audit. Read-only, matches the
+// shape already produced by the Step 3 backend endpoint.
+interface AuditLogEntry {
+  id: number;
+  description: string;
+  created_at: string;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 type ProtectedAction =
@@ -147,6 +160,25 @@ export default function Documents() {
 
   const [pendingDeleteName, setPendingDeleteName] =
     useState("");
+
+  // =====================================================
+  // AUDIT TRAIL / ACTIVITY HISTORY STATE (Step 4)
+  // =====================================================
+
+  const [showAuditModal, setShowAuditModal] =
+    useState(false);
+
+  const [auditDoc, setAuditDoc] =
+    useState<Doc | null>(null);
+
+  const [auditLoading, setAuditLoading] =
+    useState(false);
+
+  const [auditError, setAuditError] =
+    useState<string | null>(null);
+
+  const [auditHistory, setAuditHistory] =
+    useState<AuditLogEntry[]>([]);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -1737,6 +1769,99 @@ export default function Documents() {
     setBlockchainDetailsDoc(null);
   };
 
+  // =====================================================
+  // AUDIT TRAIL / ACTIVITY HISTORY (Step 4)
+  //
+  // Read-only view over the existing
+  // GET /api/documents/:id/audit endpoint (Step 3). No new
+  // table, no backend changes — this only fetches and
+  // renders what that endpoint already returns.
+  // =====================================================
+
+  const openAuditTrail = async (doc: Doc) => {
+    if (!doc.id) {
+      showToast("Document ID not found.");
+      return;
+    }
+
+    setAuditDoc(doc);
+    setShowAuditModal(true);
+    setAuditError(null);
+    setAuditHistory([]);
+    setAuditLoading(true);
+
+    try {
+      if (!isLoggedIn()) {
+        setAuditError("Please login again.");
+        setAuditLoading(false);
+        return;
+      }
+
+      const response = await fetch(
+        `${API_BASE}/api/documents/${doc.id}/audit`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        const message =
+          result.message ||
+          "Unable to load audit history.";
+        setAuditError(message);
+        showToast(message);
+        return;
+      }
+
+      setAuditHistory(
+        Array.isArray(result.history)
+          ? result.history
+          : []
+      );
+    } catch (error) {
+      console.error(
+        "AUDIT TRAIL FETCH ERROR:",
+        error
+      );
+
+      setAuditError(
+        "Unable to load audit history."
+      );
+      showToast(
+        "Unable to load audit history."
+      );
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const closeAuditModal = () => {
+    setShowAuditModal(false);
+    setAuditDoc(null);
+    setAuditHistory([]);
+    setAuditError(null);
+    setAuditLoading(false);
+  };
+
+  const formatAuditDate = (
+    value: string
+  ) => {
+    try {
+      const parsed = new Date(value);
+
+      if (isNaN(parsed.getTime())) {
+        return value;
+      }
+
+      return parsed.toLocaleString();
+    } catch {
+      return value;
+    }
+  };
+
   const shortenHash = (
     hash: string,
     front = 8,
@@ -2397,6 +2522,33 @@ export default function Documents() {
                 }}
               >
                 <Info
+                  size={13}
+                />
+              </button>
+
+              {/* AUDIT TRAIL */}
+
+              <button
+                title="Audit Trail"
+                onClick={() =>
+                  openAuditTrail(d)
+                }
+                style={{
+                  padding: 7,
+                  borderRadius: 6,
+                  border:
+                    "1px solid var(--border)",
+                  background:
+                    "var(--bg-card)",
+                  color:
+                    "var(--text-muted)",
+                  cursor:
+                    "pointer",
+                  display:
+                    "flex",
+                }}
+              >
+                <Clock
                   size={13}
                 />
               </button>
@@ -3615,6 +3767,288 @@ export default function Documents() {
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        )}
+
+      {/* ======================================
+          AUDIT TRAIL / ACTIVITY HISTORY MODAL
+          (Step 4)
+      ====================================== */}
+
+      {showAuditModal &&
+        auditDoc && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background:
+                "rgba(0, 0, 0, 0.55)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 20,
+            }}
+          >
+            <div
+              className="card"
+              style={{
+                width: "100%",
+                maxWidth: 520,
+                maxHeight: "80vh",
+                padding: 24,
+                borderRadius: 14,
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <button
+                onClick={
+                  closeAuditModal
+                }
+                style={{
+                  position: "absolute",
+                  top: 14,
+                  right: 14,
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  padding: 4,
+                }}
+              >
+                <X size={18} />
+              </button>
+
+              <div
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 12,
+                  background:
+                    "var(--blue-subtle)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 14,
+                  flexShrink: 0,
+                }}
+              >
+                <Clock
+                  size={22}
+                  style={{
+                    color: "var(--blue)",
+                  }}
+                />
+              </div>
+
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: "1.05rem",
+                }}
+              >
+                Audit Trail
+              </h2>
+
+              <div
+                style={{
+                  fontSize: "0.78rem",
+                  color: "var(--text-muted)",
+                  marginBottom: 16,
+                  wordBreak: "break-word",
+                }}
+              >
+                {auditDoc.name}
+              </div>
+
+              <div
+                style={{
+                  overflowY: "auto",
+                  flex: 1,
+                  minHeight: 0,
+                  marginRight: -8,
+                  paddingRight: 8,
+                }}
+              >
+                {auditLoading ? (
+                  <div
+                    style={{
+                      padding:
+                        "40px 20px",
+                      textAlign:
+                        "center",
+                      color:
+                        "var(--text-muted)",
+                      fontSize:
+                        "0.85rem",
+                    }}
+                  >
+                    Loading activity
+                    history...
+                  </div>
+                ) : auditError ? (
+                  <div
+                    style={{
+                      padding:
+                        "40px 20px",
+                      textAlign:
+                        "center",
+                      color:
+                        "var(--text-muted)",
+                      fontSize:
+                        "0.85rem",
+                    }}
+                  >
+                    {auditError}
+                  </div>
+                ) : auditHistory.length ===
+                  0 ? (
+                  <div
+                    style={{
+                      padding:
+                        "40px 20px",
+                      textAlign:
+                        "center",
+                      color:
+                        "var(--text-muted)",
+                      fontSize:
+                        "0.85rem",
+                    }}
+                  >
+                    No activity recorded
+                    for this document
+                    yet.
+                  </div>
+                ) : (
+                  [...auditHistory]
+                    .sort(
+                      (a, b) =>
+                        new Date(
+                          b.created_at
+                        ).getTime() -
+                        new Date(
+                          a.created_at
+                        ).getTime()
+                    )
+                    .map((entry) => (
+                      <div
+                        key={entry.id}
+                        style={{
+                          padding:
+                            "10px 0",
+                          borderBottom:
+                            "1px solid var(--border)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize:
+                              "0.85rem",
+                            color:
+                              "var(--text)",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {entry.description ||
+                            "Activity recorded"}
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize:
+                              "0.7rem",
+                            color:
+                              "var(--text-muted)",
+                            marginTop: 3,
+                          }}
+                        >
+                          {formatAuditDate(
+                            entry.created_at
+                          )}
+                        </div>
+
+                        {(entry.ip_address ||
+                          entry.user_agent) && (
+                          <div
+                            style={{
+                              fontSize:
+                                "0.7rem",
+                              color:
+                                "var(--text-subtle)",
+                              marginTop: 4,
+                              wordBreak:
+                                "break-word",
+                            }}
+                          >
+                            {entry.ip_address && (
+                              <div>
+                                IP:{" "}
+                                {
+                                  entry.ip_address
+                                }
+                              </div>
+                            )}
+                            {entry.user_agent && (
+                              <div>
+                                {
+                                  entry.user_agent
+                                }
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {entry.metadata &&
+                          Object.keys(
+                            entry.metadata
+                          ).length > 0 && (
+                            <div
+                              style={{
+                                fontSize:
+                                  "0.68rem",
+                                color:
+                                  "var(--text-subtle)",
+                                marginTop: 4,
+                                fontFamily:
+                                  "monospace",
+                                wordBreak:
+                                  "break-word",
+                              }}
+                            >
+                              {Object.entries(
+                                entry.metadata
+                              ).map(
+                                ([
+                                  key,
+                                  value,
+                                ]) => (
+                                  <div
+                                    key={
+                                      key
+                                    }
+                                  >
+                                    {key}
+                                    :{" "}
+                                    {typeof value ===
+                                    "object"
+                                      ? JSON.stringify(
+                                          value
+                                        )
+                                      : String(
+                                          value
+                                        )}
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          )}
+                      </div>
+                    ))
+                )}
+              </div>
             </div>
           </div>
         )}

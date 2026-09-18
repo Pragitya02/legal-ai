@@ -41,17 +41,13 @@ let csrfToken: string | null = null
 
 let bootstrapPromise: Promise<string | null> | null = null
 
-// Prevent multiple requests from refreshing the same
-// session simultaneously.
 let refreshPromise: Promise<boolean> | null = null
 
-// Silent refresh timer.
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
-// Access token is valid for 15 minutes.
-// Refresh it approximately 2 minutes before expiry.
+// Access token is valid for approximately 15 minutes.
+// Refresh around 2 minutes before expiry.
 const ACCESS_TOKEN_REFRESH_DELAY = 13 * 60 * 1000
-
 
 // =====================================================
 // GET API ORIGIN
@@ -70,7 +66,6 @@ function getApiOrigin(): string | null {
     return null
   }
 }
-
 
 // =====================================================
 // CHECK WHETHER URL BELONGS TO OUR BACKEND
@@ -92,21 +87,18 @@ function isProtectedUrl(
   }
 }
 
-
 // =====================================================
 // AUTH ENDPOINTS
 // =====================================================
 //
 // Never automatically refresh authentication endpoints.
 //
-// For example:
-//
 // Login → 401
-//       ↓
+//   ↓
 // Do NOT call /refresh
 //
 // Logout → 401
-//        ↓
+//   ↓
 // Do NOT call /refresh
 // =====================================================
 
@@ -117,8 +109,10 @@ function isAuthEndpoint(url: string): boolean {
       window.location.origin
     )
 
-    const path =
-      parsed.pathname.replace(/\/$/, '')
+    const path = parsed.pathname.replace(
+      /\/$/,
+      ''
+    )
 
     return (
       path === '/api/auth/login' ||
@@ -134,7 +128,6 @@ function isAuthEndpoint(url: string): boolean {
   }
 }
 
-
 // =====================================================
 // SESSION EXPIRED
 // =====================================================
@@ -143,8 +136,8 @@ function markSessionExpired(): void {
   try {
     localStorage.removeItem('user')
 
-    // Remove legacy token if an older version of the
-    // application left one behind.
+    // Remove legacy token if an older version
+    // of the application left one behind.
     localStorage.removeItem('token')
   } catch {
     // Ignore localStorage errors.
@@ -155,7 +148,6 @@ function markSessionExpired(): void {
   stopSilentRefresh()
 }
 
-
 // =====================================================
 // CSRF TOKEN
 // =====================================================
@@ -163,7 +155,6 @@ function markSessionExpired(): void {
 export async function ensureCsrfToken(
   forceRefresh = false
 ): Promise<string | null> {
-
   if (
     csrfToken &&
     !forceRefresh
@@ -181,6 +172,10 @@ export async function ensureCsrfToken(
     getApiOrigin()
 
   if (!apiOrigin) {
+    console.error(
+      '[CSRF] VITE_API_URL is not configured.'
+    )
+
     return null
   }
 
@@ -190,17 +185,17 @@ export async function ensureCsrfToken(
   }
 
   bootstrapPromise = (async () => {
-
     try {
-
-      const response =
-        await fetch(
-          `${apiOrigin}/api/auth/csrf`,
-          {
-            method: 'GET',
-            credentials: 'include',
-          }
-        )
+      const response = await fetch(
+        `${apiOrigin}/api/auth/csrf`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+          },
+        }
+      )
 
       const data =
         await response
@@ -212,11 +207,11 @@ export async function ensureCsrfToken(
         !data?.success ||
         typeof data.csrfToken !== 'string'
       ) {
-
         console.error(
           '[CSRF] Bootstrap failed:',
           data?.message ||
-            response.statusText
+            response.statusText ||
+            `HTTP ${response.status}`
         )
 
         return null
@@ -226,27 +221,20 @@ export async function ensureCsrfToken(
         data.csrfToken
 
       return csrfToken
-
     } catch (error) {
-
       console.error(
         '[CSRF] Bootstrap error:',
         error
       )
 
       return null
-
     } finally {
-
       bootstrapPromise = null
-
     }
-
   })()
 
   return bootstrapPromise
 }
-
 
 // =====================================================
 // CLEAR CSRF TOKEN
@@ -255,7 +243,6 @@ export async function ensureCsrfToken(
 export function clearCsrfToken(): void {
   csrfToken = null
 }
-
 
 // =====================================================
 // REFRESH ACCESS TOKEN
@@ -269,7 +256,6 @@ export function clearCsrfToken(): void {
 async function refreshAccessToken(
   apiOrigin: string
 ): Promise<boolean> {
-
   // If another request is already refreshing,
   // wait for that same operation.
   if (refreshPromise) {
@@ -277,9 +263,7 @@ async function refreshAccessToken(
   }
 
   refreshPromise = (async () => {
-
     try {
-
       console.log(
         '[AUTH] Refreshing access token silently...'
       )
@@ -295,7 +279,6 @@ async function refreshAccessToken(
 
       // Refresh token is invalid or expired.
       if (!response.ok) {
-
         console.warn(
           '[AUTH] Refresh failed. Session expired.'
         )
@@ -305,15 +288,12 @@ async function refreshAccessToken(
         return false
       }
 
-
-      // The backend rotates the CSRF cookie during
-      // refresh, so get the new CSRF token.
+      // Backend may rotate the CSRF cookie
+      // during refresh, so obtain the latest token.
       const newCsrfToken =
         await ensureCsrfToken(true)
 
-
       if (!newCsrfToken) {
-
         console.warn(
           '[AUTH] CSRF refresh failed.'
         )
@@ -323,15 +303,12 @@ async function refreshAccessToken(
         return false
       }
 
-
       console.log(
         '[AUTH] Session refreshed successfully.'
       )
 
       return true
-
     } catch (error) {
-
       console.error(
         '[AUTH] Refresh request failed:',
         error
@@ -340,48 +317,36 @@ async function refreshAccessToken(
       markSessionExpired()
 
       return false
-
     } finally {
-
       refreshPromise = null
-
     }
-
   })()
 
   return refreshPromise
 }
-
 
 // =====================================================
 // STOP SILENT REFRESH
 // =====================================================
 
 export function stopSilentRefresh(): void {
-
   if (refreshTimer) {
-
-    clearTimeout(
-      refreshTimer
-    )
-
+    clearTimeout(refreshTimer)
     refreshTimer = null
   }
 }
 
-
 // =====================================================
-// START / SCHEDULE SILENT REFRESH
+// START SILENT REFRESH
 // =====================================================
 //
-// This function should be called after successful login.
+// Call this after successful login.
 //
 // It does NOT refresh the browser.
-// It only silently renews the HttpOnly access cookie.
+// It silently renews the HttpOnly access cookie.
 // =====================================================
 
 export function startSilentRefresh(): void {
-
   stopSilentRefresh()
 
   const apiOrigin =
@@ -396,7 +361,6 @@ export function startSilentRefresh(): void {
   )
 }
 
-
 // =====================================================
 // SCHEDULE NEXT SILENT REFRESH
 // =====================================================
@@ -404,40 +368,31 @@ export function startSilentRefresh(): void {
 function scheduleSilentRefresh(
   apiOrigin: string
 ): void {
-
   stopSilentRefresh()
 
   refreshTimer =
     setTimeout(
       async () => {
-
         const refreshed =
           await refreshAccessToken(
             apiOrigin
           )
 
         if (refreshed) {
-
-          // Schedule another refresh for the next
-          // access-token lifetime.
           scheduleSilentRefresh(
             apiOrigin
           )
-
         }
-
       },
       ACCESS_TOKEN_REFRESH_DELAY
     )
 }
-
 
 // =====================================================
 // INSTALL GLOBAL FETCH PROTECTION
 // =====================================================
 
 export function installCsrfProtection(): void {
-
   if (
     installed ||
     typeof window === 'undefined' ||
@@ -448,32 +403,27 @@ export function installCsrfProtection(): void {
 
   installed = true
 
-
   // ===================================================
   // BACKEND ORIGINS
   // ===================================================
 
   const protectedOrigins = [
-
     'http://localhost:5001',
-
     'http://127.0.0.1:5001',
-
   ]
-
 
   const apiOrigin =
     getApiOrigin()
 
-
   if (apiOrigin) {
-
     protectedOrigins.push(
       apiOrigin
     )
-
   }
 
+  // Remove duplicates.
+  const uniqueOrigins =
+    [...new Set(protectedOrigins)]
 
   // ===================================================
   // SAVE ORIGINAL FETCH
@@ -482,7 +432,6 @@ export function installCsrfProtection(): void {
   const originalFetch =
     window.fetch.bind(window)
 
-
   // ===================================================
   // GLOBAL FETCH WRAPPER
   // ===================================================
@@ -490,12 +439,10 @@ export function installCsrfProtection(): void {
   window.fetch = async (
     input: RequestInfo | URL,
     init: RequestInit = {}
-  ) => {
-
+  ): Promise<Response> => {
     const isRequestObject =
       typeof Request !== 'undefined' &&
       input instanceof Request
-
 
     const url =
       typeof input === 'string'
@@ -503,7 +450,6 @@ export function installCsrfProtection(): void {
         : isRequestObject
           ? (input as Request).url
           : String(input)
-
 
     const method = (
       init.method ||
@@ -515,13 +461,11 @@ export function installCsrfProtection(): void {
       'GET'
     ).toUpperCase()
 
-
     const isProtected =
       isProtectedUrl(
         url,
-        protectedOrigins
+        uniqueOrigins
       )
-
 
     // =================================================
     // ADD CSRF HEADER
@@ -530,32 +474,35 @@ export function installCsrfProtection(): void {
     if (
       UNSAFE_METHODS.has(method) &&
       isProtected &&
-      !isAuthEndpoint(url) &&
-      csrfToken
+      !isAuthEndpoint(url)
     ) {
-
-      const headers =
-        new Headers(
-          init.headers ??
-          (
-            isRequestObject
-              ? (input as Request).headers
-              : undefined
-          )
-        )
-
-      headers.set(
-        CSRF_HEADER_NAME,
-        csrfToken
-      )
-
-      init = {
-        ...init,
-        headers,
+      // Make sure a CSRF token exists.
+      if (!csrfToken) {
+        await ensureCsrfToken()
       }
 
-    }
+      if (csrfToken) {
+        const headers =
+          new Headers(
+            init.headers ??
+            (
+              isRequestObject
+                ? (input as Request).headers
+                : undefined
+            )
+          )
 
+        headers.set(
+          CSRF_HEADER_NAME,
+          csrfToken
+        )
+
+        init = {
+          ...init,
+          headers,
+        }
+      }
+    }
 
     // =================================================
     // FIRST REQUEST
@@ -567,17 +514,8 @@ export function installCsrfProtection(): void {
         init
       )
 
-
     // =================================================
     // 401 FALLBACK REFRESH
-    // =================================================
-    //
-    // Normally the proactive 13-minute refresh means
-    // the access token won't expire during normal use.
-    //
-    // But if the browser was sleeping, the timer was
-    // delayed, or the token expired for another reason,
-    // this catches the 401 and silently refreshes.
     // =================================================
 
     if (
@@ -586,29 +524,24 @@ export function installCsrfProtection(): void {
       !isAuthEndpoint(url) &&
       apiOrigin
     ) {
-
       console.log(
         '[AUTH] API returned 401. Attempting silent refresh:',
         url
       )
-
 
       const refreshed =
         await refreshAccessToken(
           apiOrigin
         )
 
-
       // =================================================
       // RETRY ORIGINAL REQUEST
       // =================================================
 
       if (refreshed) {
-
         if (
           UNSAFE_METHODS.has(method)
         ) {
-
           const headers =
             new Headers(
               init.headers ??
@@ -619,58 +552,48 @@ export function installCsrfProtection(): void {
               )
             )
 
+          // Ensure latest CSRF token.
+          if (!csrfToken) {
+            await ensureCsrfToken()
+          }
 
           if (csrfToken) {
-
             headers.set(
               CSRF_HEADER_NAME,
               csrfToken
             )
-
           }
-
 
           init = {
             ...init,
             headers,
           }
-
         }
-
 
         // Request objects can only be consumed once.
         // Clone before retrying.
-        let retryInput =
+        let retryInput:
+          RequestInfo | URL =
           input
 
-
         if (isRequestObject) {
-
           retryInput =
             (input as Request).clone()
-
         }
-
 
         console.log(
           '[AUTH] Retrying request:',
           url
         )
 
-
         response =
           await originalFetch(
             retryInput,
             init
           )
-
       }
-
     }
 
-
     return response
-
   }
-
 }

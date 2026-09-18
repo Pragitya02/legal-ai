@@ -1342,16 +1342,30 @@ export default function Meeting() {
                                 }
 
                                 const currentRole = String(meeting?.role || "").toLowerCase();
-                                const requesterRole = String(data?.requestedByRole || "").toLowerCase();
+const requesterRole = String(
+    data?.requestedByRole || ""
+).toLowerCase();
 
-                                // Only the participant who did NOT make the request
-                                // should see the approval prompt.
-                                if (requesterRole && requesterRole !== currentRole) {
-                                    setIncomingEndRequest(true);
-                                    setConnectionStatus(
-                                        `${data?.requesterName || "The other participant"} requested permanent end-call approval.`
-                                    );
-                                }
+// Backend calls the advocate role "lawyer", while the
+// frontend meeting data calls the same role "advocate".
+const normalizedCurrentRole =
+    currentRole === "lawyer" ? "advocate" : currentRole;
+
+const normalizedRequesterRole =
+    requesterRole === "lawyer" ? "advocate" : requesterRole;
+
+// Only the participant who did NOT make the request
+// should see the approval prompt.
+if (
+    normalizedRequesterRole &&
+    normalizedRequesterRole !== normalizedCurrentRole
+) {
+    setIncomingEndRequest(true);
+
+    setConnectionStatus(
+        `${data?.requesterName || "The other participant"} requested permanent end-call approval.`
+    );
+}
                             }
                         );
 
@@ -1384,7 +1398,7 @@ export default function Meeting() {
                                 cleanupCall();
 
                                 window.setTimeout(() => {
-                                    window.location.href = "/dashboard/meetings";
+                                    window.location.href = `/feedback?appointmentId=${encodeURIComponent(appointmentId)}`;
                                 }, 250);
                             }
                         );
@@ -1836,7 +1850,12 @@ export default function Meeting() {
                     setIncomingEndRequest(false);
                     setShowEndOptions(false);
                     cleanupCall();
-                    window.location.href = "/dashboard/meetings";
+
+                    // After permanent approval, both participants go through
+                    // the feedback flow. Feedback.tsx redirects each role
+                    // to the correct meetings page afterward.
+                    window.location.href =
+                        `/feedback?appointmentId=${encodeURIComponent(appointmentId)}`;
                 } catch (err) {
                     console.error("Approve permanent end error:", err);
                     setError(

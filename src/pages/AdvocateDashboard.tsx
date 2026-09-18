@@ -117,7 +117,7 @@ export default function AdvocateDashboard() {
     appointments: '__',
     clients: '__',
     revenue: '__',
-    rating: '__',
+    rating: '— (0)',
   })
 
 
@@ -184,6 +184,97 @@ export default function AdvocateDashboard() {
             // synchronized.
 
             setStoredUser(data.user)
+
+
+            // Load the real advocate rating and review count.
+            //
+            // IMPORTANT:
+            // The feedback backend stores citizen -> advocate ratings in
+            // meeting_feedback.reviewee_id. The summary endpoint returns:
+            //   averageRating
+            //   reviewCount
+            //
+            // Do not reset this value from another dashboard effect.
+            const advocateId = Number(data.user.id)
+
+            if (Number.isInteger(advocateId) && advocateId > 0) {
+              try {
+                const ratingResponse = await fetch(
+                  `${API_URL}/api/feedback/advocates/${encodeURIComponent(
+                    String(advocateId)
+                  )}/summary`,
+                  {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                      Accept: 'application/json',
+                    },
+                  }
+                )
+
+                const ratingData = await ratingResponse.json()
+
+                console.log(
+                  'ADVOCATE RATING RESPONSE:',
+                  {
+                    advocateId,
+                    status: ratingResponse.status,
+                    data: ratingData,
+                  }
+                )
+
+                if (!ratingResponse.ok || !ratingData?.success) {
+                  throw new Error(
+                    ratingData?.message ||
+                    `Rating request failed with status ${ratingResponse.status}`
+                  )
+                }
+
+                const averageRating = Number(
+                  ratingData.averageRating
+                )
+
+                const reviewCount = Number(
+                  ratingData.reviewCount
+                )
+
+                if (
+                  reviewCount > 0 &&
+                  Number.isFinite(averageRating)
+                ) {
+                  setStats(previous => ({
+                    ...previous,
+                    rating: `${averageRating.toFixed(1)} (${reviewCount})`,
+                  }))
+                } else {
+                  setStats(previous => ({
+                    ...previous,
+                    rating: '— (0)',
+                  }))
+                }
+              } catch (ratingError) {
+                console.error(
+                  'RATING FETCH ERROR:',
+                  ratingError
+                )
+
+                // Never show a fake rating if the API fails.
+                setStats(previous => ({
+                  ...previous,
+                  rating: '— (0)',
+                }))
+              }
+            } else {
+              console.error(
+                'Invalid advocate ID for rating:',
+                data.user.id
+              )
+
+              setStats(previous => ({
+                ...previous,
+                rating: '— (0)',
+              }))
+            }
           }
 
         } catch (error) {
@@ -201,65 +292,6 @@ export default function AdvocateDashboard() {
 
 
     loadProfile()
-
-  }, [])
-
-
-  // ===================================================
-  // OPTIONAL DASHBOARD DATA
-  //
-  // We intentionally do NOT create fake data.
-  // ===================================================
-
-  useEffect(() => {
-
-    const loadDashboard =
-      async () => {
-
-        try {
-
-          if (!getStoredUser()) {
-            return
-          }
-
-
-          /*
-           * If you later create a real
-           * dashboard API, connect it here.
-           *
-           * Example:
-           *
-           * GET /api/lawyers/dashboard
-           *
-           * Until then, all values remain "__".
-           */
-
-
-          setStats({
-            appointments: '__',
-            clients: '__',
-            revenue: '__',
-            rating: '__',
-          })
-
-
-          // No fake appointments.
-
-          setAppointments([])
-
-        } catch (error) {
-
-          console.error(
-            'DASHBOARD FETCH ERROR:',
-            error
-          )
-
-        }
-
-      }
-
-
-    loadDashboard()
 
   }, [])
 

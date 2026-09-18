@@ -4,6 +4,9 @@ const crypto = require("crypto");
 const db = require("../db");
 
 const authMiddleware = require("../middleware/authMiddleware");
+const {
+    issueSession
+} = require("../services/sessionService");
 
 const {
     createUser,
@@ -111,38 +114,7 @@ const SIGNUP_OTP_PURPOSE = "signup";
 const PASSWORD_RESET_TOKEN_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 
-// =====================================================
-// ISSUE SESSION (access + refresh cookies)
-// Central helper so every login path (citizen, advocate,
-// Google) sets cookies the same way.
-// =====================================================
 
-async function issueSession(res, user) {
-
-    const accessToken = signAccessToken(user);
-
-    const refreshToken = generateRefreshToken();
-    const refreshTokenHash = hashToken(refreshToken);
-    const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
-
-    await insertRefreshToken(user.id, refreshTokenHash, refreshExpiresAt);
-
-    res.cookie(
-        ACCESS_TOKEN_COOKIE,
-        accessToken,
-        accessCookieOptions(ACCESS_TOKEN_TTL_MS)
-    );
-
-    res.cookie(
-        REFRESH_TOKEN_COOKIE,
-        refreshToken,
-        refreshCookieOptions(REFRESH_TOKEN_TTL_MS)
-    );
-
-    // Paired CSRF token — readable by frontend JS, required as
-    // a header on subsequent state-changing requests.
-    issueCsrfCookie(res, ACCESS_TOKEN_TTL_MS);
-}
 
 
 // =====================================================

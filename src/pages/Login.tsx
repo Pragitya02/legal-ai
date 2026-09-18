@@ -14,6 +14,7 @@ import {
   Search,
   ChevronDown,
   Check,
+  ShieldCheck,
 } from 'lucide-react'
 
 // =====================================================
@@ -470,6 +471,7 @@ export default function Login() {
 
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [digilockerLoading, setDigilockerLoading] = useState(false)
 
   // =====================================================
   // SIGNUP STEPS
@@ -945,6 +947,27 @@ if (redirectTo && redirectTo.startsWith('/')) {
   }
 
   // =====================================================
+  // DIGILOCKER VERIFICATION
+  // =====================================================
+
+  const handleDigiLockerLogin = () => {
+    if (digilockerLoading) return
+
+    setDigilockerLoading(true)
+    setErrorMsg('')
+
+    // The real DigiLocker OAuth/API Setu integration will be
+    // connected through the backend once the required partner
+    // credentials and callback URL are configured.
+    setTimeout(() => {
+      setDigilockerLoading(false)
+      setErrorMsg(
+        'DigiLocker verification is being configured. Please use Google or email login for now.'
+      )
+    }, 500)
+  }
+
+  // =====================================================
   // GOOGLE LOGIN
   // =====================================================
 
@@ -1406,8 +1429,122 @@ if (redirectTo && redirectTo.startsWith('/')) {
           )}
 
           {/* =================================================
+              DIGILOCKER BUTTON
+              Advocate login only
+          ================================================= */}
+
+          {!isSignup && tab === 'advocate' && (
+            <>
+              <button
+                type="button"
+                onClick={handleDigiLockerLogin}
+                disabled={digilockerLoading}
+                style={{
+                  width: '100%',
+                  padding: '11px',
+                  borderRadius: 10,
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  border: '1px solid var(--emerald-light)',
+                  background: 'var(--bg-card)',
+                  color: 'var(--text)',
+                  cursor: digilockerLoading
+                    ? 'wait'
+                    : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  marginBottom: 10,
+                  transition: 'all 0.15s',
+                  opacity: digilockerLoading ? 0.75 : 1,
+                }}
+              >
+                {digilockerLoading ? (
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: 16,
+                      height: 16,
+                      border: '2px solid var(--border)',
+                      borderTopColor: 'var(--emerald)',
+                      borderRadius: '50%',
+                      animation: 'spin 0.7s linear infinite',
+                    }}
+                  />
+                ) : (
+                  <ShieldCheck
+                    size={18}
+                    style={{
+                      color: 'var(--emerald)',
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+
+                {digilockerLoading
+                  ? 'Connecting...'
+                  : 'Continue with DigiLocker'}
+              </button>
+
+              {/* =================================================
+                  DIGILOCKER VERIFIED BADGE HIGHLIGHT
+              ================================================= */}
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                  padding: '12px 14px',
+                  marginBottom: 20,
+                  borderRadius: 10,
+                  background: 'var(--emerald-subtle)',
+                  border: '1px solid var(--emerald-light)',
+                }}
+              >
+                <Award
+                  size={18}
+                  style={{
+                    color: 'var(--emerald)',
+                    flexShrink: 0,
+                    marginTop: 1,
+                  }}
+                />
+
+                <div>
+                  <div
+                    style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      color: 'var(--emerald)',
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    Verify with DigiLocker to get your Verified Advocate badge
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 3,
+                      fontSize: '0.72rem',
+                      color: 'var(--text-muted)',
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    Complete identity verification and Bar Council verification
+                    to unlock your verified badge.
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* =================================================
               DIVIDER
           ================================================= */}
+
+
 
           {(!isSignup || signupStep === 'details') && (
           <div
