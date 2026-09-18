@@ -1,5 +1,7 @@
 const mysql = require("mysql2/promise");
-
+const {
+    ensureAuditLogsTable
+} = require("./database/auditLogModel");
 console.log("DATABASE CONNECTION:");
 
 console.log("HOST:", process.env.DB_HOST);
