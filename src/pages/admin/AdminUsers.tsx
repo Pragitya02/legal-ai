@@ -1,3 +1,5 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router'
 import {
   ArrowLeft,
   Loader2,
@@ -5,8 +7,6 @@ import {
   ShieldCheck,
   User,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
 
 const API_URL =
   import.meta.env.VITE_API_URL || ''
@@ -96,10 +96,14 @@ export default function AdminUsers() {
   }, [])
 
   function handleSearch(
-    event: React.FormEvent,
+    event: FormEvent,
   ) {
     event.preventDefault()
     void loadUsers(search)
+  }
+
+  function openUser(userId: number) {
+    navigate(`/admin/users/${userId}`)
   }
 
   return (
@@ -302,11 +306,15 @@ export default function AdminUsers() {
               <button
                 key={user.id}
                 type="button"
+                onClick={() =>
+                  openUser(user.id)
+                }
                 className="grid w-full grid-cols-[1fr_1fr_160px] gap-4 border-b px-5 py-5 text-left transition-colors hover:bg-white/[0.03]"
                 style={{
                   background: 'var(--bg)',
                   borderColor: 'var(--border)',
                 }}
+                aria-label={`Open ${user.fullName || 'user'} details`}
               >
                 <div className="flex items-center gap-3">
                   <div

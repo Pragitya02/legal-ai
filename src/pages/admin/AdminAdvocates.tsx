@@ -6,7 +6,7 @@ import {
   Search,
   ShieldCheck,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 
 const API_URL =
@@ -106,10 +106,16 @@ export default function AdminAdvocates() {
   }, [])
 
   function handleSearch(
-    event: React.FormEvent,
+    event: FormEvent,
   ) {
     event.preventDefault()
     void loadAdvocates(search)
+  }
+
+  function openAdvocate(advocateId: number) {
+    navigate(
+      `/admin/advocates/${advocateId}`,
+    )
   }
 
   return (
@@ -313,6 +319,13 @@ export default function AdminAdvocates() {
               <button
                 key={advocate.id}
                 type="button"
+                onClick={() =>
+                  openAdvocate(advocate.id)
+                }
+                aria-label={`Open ${
+                  advocate.fullName ||
+                  'advocate'
+                } details`}
                 className="grid w-full grid-cols-[1.2fr_1fr_1fr_120px] gap-4 border-b px-5 py-5 text-left transition-colors hover:bg-white/[0.03]"
                 style={{
                   background: 'var(--bg)',
@@ -345,7 +358,8 @@ export default function AdminAdvocates() {
                     <p
                       className="mt-1 truncate text-xs"
                       style={{
-                        color: 'var(--text-muted)',
+                        color:
+                          'var(--text-muted)',
                       }}
                     >
                       {advocate.email}
@@ -367,7 +381,8 @@ export default function AdminAdvocates() {
                   <p
                     className="mt-1 text-xs"
                     style={{
-                      color: 'var(--text-muted)',
+                      color:
+                        'var(--text-muted)',
                     }}
                   >
                     {advocate.experience
@@ -404,7 +419,8 @@ export default function AdminAdvocates() {
                     <span
                       className="text-xs"
                       style={{
-                        color: 'var(--text-muted)',
+                        color:
+                          'var(--text-muted)',
                       }}
                     >
                       Unverified
