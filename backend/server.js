@@ -1382,9 +1382,9 @@ function removeSocketFromConsultation(
 // =====================================================
 // START SERVER
 // =====================================================
-
 server.listen(
     PORT,
+    "0.0.0.0",
     () => {
         console.log(
             "================================="
@@ -1399,8 +1399,8 @@ server.listen(
         );
 
         console.log(
-            `Server running on http://localhost:${PORT}`
-        );
+    `Server running on http://0.0.0.0:${PORT}`
+);
 
         console.log(
             `Frontend origin: ${FRONTEND_URL}`
