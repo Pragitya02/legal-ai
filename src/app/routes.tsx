@@ -2,6 +2,8 @@ import { createBrowserRouter } from 'react-router'
 
 import AdminLogin from '../pages/AdminLogin'
 import AdminDashboard from '../pages/AdminDashboard'
+import AdminUsers from '../pages/admin/AdminUsers'
+import AdminAdvocates from '../pages/admin/AdminAdvocates'
 
 import RootLayout from '../components/layout/RootLayout'
 import DashboardLayout from '../components/layout/DashboardLayout'
@@ -228,16 +230,6 @@ export const router = createBrowserRouter([
   // =====================================================
   // VIDEO CONSULTATION
   // =====================================================
-  //
-  // This is intentionally outside DashboardLayout.
-  //
-  // URL:
-  // /meeting/:appointmentId
-  //
-  // Both citizen and advocate use the same Meeting page.
-  // Their permissions/role are determined from the
-  // authenticated meeting information.
-  // =====================================================
 
   {
     path: 'meeting/:appointmentId',
@@ -246,17 +238,6 @@ export const router = createBrowserRouter([
 
   // =====================================================
   // MANDATORY MEETING FEEDBACK
-  // =====================================================
-  //
-  // Shown after a permanent meeting end.
-  //
-  // This is intentionally outside DashboardLayout because
-  // the feedback must be submitted before the user can
-  // access the dashboard again.
-  //
-  // URL:
-  // /feedback
-  //
   // =====================================================
 
   {
@@ -267,30 +248,33 @@ export const router = createBrowserRouter([
   // =====================================================
   // ADMINISTRATOR PORTAL
   // =====================================================
-  //
-  // Login:
-  // /admin
-  //
-  // Dashboard:
-  // /admin/dashboard
-  //
-  // The AdminDashboard independently verifies the
-  // authenticated administrator session through:
-  //
-  // GET /api/admin/me
-  //
-  // Backend role authorization remains the real
-  // security boundary.
-  // =====================================================
 
+  // Admin login
+  // /admin
   {
     path: 'admin',
     Component: AdminLogin,
   },
 
+  // Admin main dashboard
+  // /admin/dashboard
   {
     path: 'admin/dashboard',
     Component: AdminDashboard,
+  },
+
+  // Admin users
+  // /admin/users
+  {
+    path: 'admin/users',
+    Component: AdminUsers,
+  },
+
+  // Admin advocates
+  // /admin/advocates
+  {
+    path: 'admin/advocates',
+    Component: AdminAdvocates,
   },
 
   // =====================================================
