@@ -9,6 +9,7 @@ const {
     verifyOtpCode,
     clearOtp
 } = require("../services/otpService");
+const { logDocumentActivity } = require("../database/auditLogModel");
 
 const router = express.Router();
 
@@ -71,13 +72,6 @@ function maskEmail(email) {
 // =====================================================
 // GET DOCUMENT SECURITY STATUS
 // =====================================================
-// Checks whether the authenticated user has created
-// a Document Security Password.
-//
-// IMPORTANT:
-// The user ID comes from the verified JWT.
-// We do NOT accept userId from the browser.
-// =====================================================
 
 router.get(
     "/status",
@@ -126,11 +120,6 @@ router.get(
 // =====================================================
 // SET DOCUMENT SECURITY PASSWORD
 // =====================================================
-// Used when a user does not have a Document Password.
-//
-// The actual password is NEVER stored.
-// Only the bcrypt hash is stored.
-// =====================================================
 
 router.post(
     "/set-password",
@@ -169,7 +158,6 @@ router.post(
                 });
             }
 
-            // Check whether the user already has a password.
             const [existing] = await db.query(
                 `
                 SELECT id
@@ -188,7 +176,6 @@ router.post(
                 });
             }
 
-            // Hash the password.
             const passwordHash =
                 await bcrypt.hash(
                     password,
@@ -328,15 +315,6 @@ router.post(
 // =====================================================
 // REQUEST DOCUMENT SECURITY PASSWORD RESET
 // =====================================================
-// Sends a reset OTP to the authenticated user's
-// registered email address.
-//
-// SECURITY:
-// - User ID comes from JWT.
-// - Email is taken from database.
-// - Browser cannot provide another user's email.
-// - OTP is handled by the existing OTP service.
-// =====================================================
 
 router.post(
     "/request-reset",
@@ -352,7 +330,6 @@ router.post(
                 });
             }
 
-            // Get the authenticated user's email and role.
             const [users] = await db.query(
                 `
                 SELECT
@@ -388,7 +365,6 @@ router.post(
                 });
             }
 
-            // Make sure the Document Security Password exists.
             const [securityRows] = await db.query(
                 `
                 SELECT id
@@ -407,7 +383,6 @@ router.post(
                 });
             }
 
-            // Reuse the existing NyayaAI password-reset OTP system.
             const result =
                 await createAndSendPasswordResetOtp(
                     email,
@@ -452,16 +427,6 @@ router.post(
 // =====================================================
 // RESET DOCUMENT SECURITY PASSWORD
 // =====================================================
-// Verifies the OTP and creates a new Document Security
-// Password.
-//
-// SECURITY:
-// - User ID comes from JWT.
-// - OTP email is taken from database.
-// - Password is bcrypt hashed.
-// - OTP is cleared after successful reset.
-// - Plain password is never stored.
-// =====================================================
 
 router.post(
     "/reset-password",
@@ -483,10 +448,6 @@ router.post(
                 });
             }
 
-            // =================================================
-            // VALIDATE RESET CODE
-            // =================================================
-
             if (
                 typeof code !== "string" ||
                 code.trim().length === 0
@@ -497,10 +458,6 @@ router.post(
                         "Verification code is required."
                 });
             }
-
-            // =================================================
-            // VALIDATE NEW PASSWORD
-            // =================================================
 
             const validationError =
                 validatePassword(password);
@@ -519,10 +476,6 @@ router.post(
                         "New Document Security Passwords do not match."
                 });
             }
-
-            // =================================================
-            // GET AUTHENTICATED USER EMAIL
-            // =================================================
 
             const [users] = await db.query(
                 `
@@ -556,10 +509,6 @@ router.post(
                 });
             }
 
-            // =================================================
-            // VERIFY OTP
-            // =================================================
-
             try {
                 await verifyOtpCode(
                     email,
@@ -590,19 +539,11 @@ router.post(
                 });
             }
 
-            // =================================================
-            // HASH NEW DOCUMENT PASSWORD
-            // =================================================
-
             const passwordHash =
                 await bcrypt.hash(
                     password,
                     BCRYPT_ROUNDS
                 );
-
-            // =================================================
-            // UPDATE DOCUMENT SECURITY PASSWORD
-            // =================================================
 
             const [updateResult] = await db.query(
                 `
@@ -624,24 +565,28 @@ router.post(
                 });
             }
 
-            // =================================================
-            // CLEAR USED OTP
-            // =================================================
-
             try {
                 await clearOtp(
                     email,
                     DOCUMENT_RESET_OTP_PURPOSE
                 );
             } catch (clearError) {
-                // Password reset already succeeded.
-                // Log cleanup failure but don't report
-                // the reset as failed.
                 console.error(
                     "CLEAR DOCUMENT PASSWORD RESET OTP ERROR:",
                     clearError
                 );
             }
+
+            // AUDIT LOG
+            await logDocumentActivity({
+                documentId: null,
+                userId,
+                action: "document_security_changed",
+                req,
+                metadata: {
+                    method: "otp_reset"
+                }
+            });
 
             return res.json({
                 success: true,
@@ -666,8 +611,6 @@ router.post(
 
 // =====================================================
 // CHANGE DOCUMENT SECURITY PASSWORD
-// =====================================================
-// Used when the user knows their current password.
 // =====================================================
 
 router.post(
@@ -770,6 +713,17 @@ router.post(
                     userId
                 ]
             );
+
+            // AUDIT LOG
+            await logDocumentActivity({
+                documentId: null,
+                userId,
+                action: "document_security_changed",
+                req,
+                metadata: {
+                    method: "known_password_change"
+                }
+            });
 
             return res.json({
                 success: true,

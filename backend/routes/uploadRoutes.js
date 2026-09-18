@@ -17,6 +17,7 @@ const {
     setBlockchainRegistration,
     getDocumentForBlockchain,
 } = require("../database/documentHashModel");
+const { logDocumentActivity } = require("../database/auditLogModel");
 
 const router = express.Router();
 
@@ -153,8 +154,8 @@ function fileSignatureMatchesMimeType(buffer, mimetype) {
 
         case "image/webp":
             return (
-                matchesSignature(buffer, [0x52, 0x49, 0x46, 0x46]) && // RIFF
-                matchesSignature(buffer, [0x57, 0x45, 0x42, 0x50], 8) // WEBP
+                matchesSignature(buffer, [0x52, 0x49, 0x46, 0x46]) &&
+                matchesSignature(buffer, [0x57, 0x45, 0x42, 0x50], 8)
             );
 
         case "image/gif":
@@ -166,7 +167,7 @@ function fileSignatureMatchesMimeType(buffer, mimetype) {
         case "audio/mpeg":
         case "audio/mp3":
             return (
-                matchesSignature(buffer, [0x49, 0x44, 0x33]) || // ID3
+                matchesSignature(buffer, [0x49, 0x44, 0x33]) ||
                 matchesSignature(buffer, [0xff, 0xfb]) ||
                 matchesSignature(buffer, [0xff, 0xf3]) ||
                 matchesSignature(buffer, [0xff, 0xf2])
@@ -174,14 +175,12 @@ function fileSignatureMatchesMimeType(buffer, mimetype) {
 
         case "audio/wav":
         case "audio/x-wav":
-            return matchesSignature(buffer, [0x52, 0x49, 0x46, 0x46]); // RIFF
+            return matchesSignature(buffer, [0x52, 0x49, 0x46, 0x46]);
 
         case "audio/mp4":
         case "audio/x-m4a":
         case "video/mp4":
         case "video/quicktime":
-            // MP4/M4A/MOV all use the ISO base media container:
-            // bytes 4-7 spell "ftyp".
             return matchesSignature(buffer, [0x66, 0x74, 0x79, 0x70], 4);
 
         case "video/webm":
@@ -415,9 +414,11 @@ router.get(
 
 async function registerDocumentOnBlockchain(documentId, documentHash) {
     if (!isBlockchainEnabled()) {
-        // Feature is off: leave blockchain_tx_hash/blockchain_status
-        // untouched (NULL) and do nothing else.
-        return { attempted: false, status: null, txHash: null };
+        return {
+            attempted: false,
+            status: null,
+            txHash: null
+        };
     }
 
     try {
@@ -425,13 +426,13 @@ async function registerDocumentOnBlockchain(documentId, documentHash) {
 
         await setBlockchainRegistration(documentId, {
             status: "registered",
-            txHash: anchorResult.txHash,
+            txHash: anchorResult.txHash
         });
 
         return {
             attempted: true,
             status: "registered",
-            txHash: anchorResult.txHash,
+            txHash: anchorResult.txHash
         };
     } catch (blockchainError) {
         console.error(
@@ -442,7 +443,7 @@ async function registerDocumentOnBlockchain(documentId, documentHash) {
         try {
             await setBlockchainRegistration(documentId, {
                 status: "failed",
-                txHash: null,
+                txHash: null
             });
         } catch (dbError) {
             console.error(
@@ -451,7 +452,11 @@ async function registerDocumentOnBlockchain(documentId, documentHash) {
             );
         }
 
-        return { attempted: true, status: "failed", txHash: null };
+        return {
+            attempted: true,
+            status: "failed",
+            txHash: null
+        };
     }
 }
 
@@ -522,15 +527,15 @@ router.post(
             const [result] = await db.query(
                 `
                 INSERT INTO documents
-                    (
-                        user_id,
-                        file_name,
-                        file_path,
-                        file_type,
-                        document_hash
-                    )
+                (
+                    user_id,
+                    file_name,
+                    file_path,
+                    file_type,
+                    document_hash
+                )
                 VALUES
-                    (?, ?, ?, ?, ?)
+                (?, ?, ?, ?, ?)
                 `,
                 [
                     req.user.id,
@@ -558,6 +563,18 @@ router.post(
                 documentId,
                 documentHash
             );
+
+            // AUDIT LOG (never blocks/breaks the upload response)
+            await logDocumentActivity({
+                documentId,
+                userId: req.user.id,
+                action: "document_uploaded",
+                req,
+                metadata: {
+                    fileName,
+                    fileType
+                }
+            });
 
             return res.status(201).json({
                 success: true,
@@ -680,11 +697,12 @@ router.post(
                 });
             }
 
-            return res.status(200).json({
+            return res.json({
                 success: true,
-                message: "Document hash registered on blockchain.",
+                message: "Document registered on blockchain.",
                 blockchain: {
-                    status: blockchainResult.status
+                    status: blockchainResult.status,
+                    txHash: blockchainResult.txHash
                 }
             });
         } catch (error) {
@@ -761,6 +779,17 @@ router.post(
                 document.blockchain_status !== "registered" ||
                 !document.blockchain_tx_hash
             ) {
+                // AUDIT LOG (never blocks/breaks the verify response)
+                await logDocumentActivity({
+                    documentId,
+                    userId: req.user.id,
+                    action: "blockchain_verified",
+                    req,
+                    metadata: {
+                        status: "not_registered"
+                    }
+                });
+
                 return res.status(200).json({
                     success: true,
                     status: "not_registered"
@@ -827,6 +856,17 @@ router.post(
                     blockchainError.message
                 );
 
+                // AUDIT LOG (never blocks/breaks the verify response)
+                await logDocumentActivity({
+                    documentId,
+                    userId: req.user.id,
+                    action: "blockchain_verified",
+                    req,
+                    metadata: {
+                        status: "blockchain_unavailable"
+                    }
+                });
+
                 return res.status(200).json({
                     success: true,
                     status: "blockchain_unavailable"
@@ -838,6 +878,17 @@ router.post(
                 !onChainResult.found ||
                 !onChainResult.documentHash
             ) {
+                // AUDIT LOG (never blocks/breaks the verify response)
+                await logDocumentActivity({
+                    documentId,
+                    userId: req.user.id,
+                    action: "blockchain_verified",
+                    req,
+                    metadata: {
+                        status: "blockchain_unavailable"
+                    }
+                });
+
                 return res.status(200).json({
                     success: true,
                     status: "blockchain_unavailable"
@@ -850,6 +901,17 @@ router.post(
 
             const matches =
                 currentHash.toLowerCase() === onChainHash;
+
+            // AUDIT LOG (never blocks/breaks the verify response)
+            await logDocumentActivity({
+                documentId,
+                userId: req.user.id,
+                action: "blockchain_verified",
+                req,
+                metadata: {
+                    status: matches ? "verified" : "tampered"
+                }
+            });
 
             if (matches) {
                 return res.status(200).json({
@@ -954,6 +1016,17 @@ router.get(
                 )}"`
             );
 
+            // AUDIT LOG (never blocks/breaks the view response)
+            await logDocumentActivity({
+                documentId,
+                userId: req.user.id,
+                action: "document_viewed",
+                req,
+                metadata: {
+                    fileName: document.file_name
+                }
+            });
+
             return res.sendFile(physicalPath);
         } catch (error) {
             console.error(
@@ -1031,6 +1104,17 @@ router.get(
                 });
             }
 
+            // AUDIT LOG (never blocks/breaks the download response)
+            await logDocumentActivity({
+                documentId,
+                userId: req.user.id,
+                action: "document_downloaded",
+                req,
+                metadata: {
+                    fileName: document.file_name
+                }
+            });
+
             return res.download(
                 physicalPath,
                 document.file_name
@@ -1072,6 +1156,7 @@ router.delete(
                 `
                 SELECT
                     id,
+                    file_name,
                     file_path
                 FROM documents
                 WHERE id = ?
@@ -1124,6 +1209,17 @@ router.delete(
                     );
                 }
             }
+
+            // AUDIT LOG (never blocks/breaks the delete response)
+            await logDocumentActivity({
+                documentId,
+                userId: req.user.id,
+                action: "document_deleted",
+                req,
+                metadata: {
+                    fileName: document.file_name
+                }
+            });
 
             return res.json({
                 success: true,
