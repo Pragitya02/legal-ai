@@ -1544,7 +1544,7 @@ if (redirectTo && redirectTo.startsWith('/')) {
               DIVIDER
           ================================================= */}
 
-}
+
 
           {(!isSignup || signupStep === 'details') && (
           <div
