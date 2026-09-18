@@ -1342,16 +1342,30 @@ export default function Meeting() {
                                 }
 
                                 const currentRole = String(meeting?.role || "").toLowerCase();
-                                const requesterRole = String(data?.requestedByRole || "").toLowerCase();
+const requesterRole = String(
+    data?.requestedByRole || ""
+).toLowerCase();
 
-                                // Only the participant who did NOT make the request
-                                // should see the approval prompt.
-                                if (requesterRole && requesterRole !== currentRole) {
-                                    setIncomingEndRequest(true);
-                                    setConnectionStatus(
-                                        `${data?.requesterName || "The other participant"} requested permanent end-call approval.`
-                                    );
-                                }
+// Backend calls the advocate role "lawyer", while the
+// frontend meeting data calls the same role "advocate".
+const normalizedCurrentRole =
+    currentRole === "lawyer" ? "advocate" : currentRole;
+
+const normalizedRequesterRole =
+    requesterRole === "lawyer" ? "advocate" : requesterRole;
+
+// Only the participant who did NOT make the request
+// should see the approval prompt.
+if (
+    normalizedRequesterRole &&
+    normalizedRequesterRole !== normalizedCurrentRole
+) {
+    setIncomingEndRequest(true);
+
+    setConnectionStatus(
+        `${data?.requesterName || "The other participant"} requested permanent end-call approval.`
+    );
+}
                             }
                         );
 
