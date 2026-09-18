@@ -1387,4 +1387,129 @@ router.use((error, req, res, next) => {
     next();
 });
 
+/* =========================================================
+   GET DOCUMENT AUDIT HISTORY
+   (Audit Trail — Step 3)
+
+   Returns the audit_logs entries recorded for a single
+   document (Steps 1–2 already write these rows via
+   logDocumentActivity()). Read-only: no table is created,
+   altered, or written to here.
+========================================================= */
+
+router.get(
+    "/documents/:id/audit",
+    authMiddleware,
+    async (req, res) => {
+        try {
+            const documentId = Number(req.params.id);
+
+            if (!Number.isInteger(documentId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid document ID."
+                });
+            }
+
+            /*
+             * Ownership check — same pattern used by the other
+             * /documents/:id routes above (view/download/delete):
+             * a document only "exists" for this endpoint if it
+             * belongs to the authenticated user.
+             */
+
+            const [documentRows] = await db.query(
+                `
+                SELECT
+                    id
+                FROM documents
+                WHERE id = ?
+                  AND user_id = ?
+                LIMIT 1
+                `,
+                [documentId, req.user.id]
+            );
+
+            if (!documentRows || documentRows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Document not found."
+                });
+            }
+
+            /*
+             * entity_id is matched with a strict "=" against a
+             * concrete integer documentId, so rows written with
+             * documentId: null (e.g. the account-wide document
+             * security password events in documentSecurityRoutes.js)
+             * can never match and never leak into a document's
+             * audit history.
+             */
+
+            const [auditRows] = await db.query(
+                `
+                SELECT
+                    id,
+                    description,
+                    created_at,
+                    ip_address,
+                    user_agent,
+                    metadata
+                FROM audit_logs
+                WHERE entity_type = 'document'
+                  AND entity_id = ?
+                ORDER BY created_at DESC
+                `,
+                [documentId]
+            );
+
+            const history = (auditRows || []).map((row) => {
+                let parsedMetadata = null;
+
+                if (row.metadata !== null && row.metadata !== undefined) {
+                    if (typeof row.metadata === "string") {
+                        try {
+                            parsedMetadata = JSON.parse(row.metadata);
+                        } catch (parseError) {
+                            // Malformed/non-JSON metadata — surface
+                            // nothing rather than a broken value.
+                            parsedMetadata = null;
+                        }
+                    } else {
+                        // mysql2 already parsed a native JSON column.
+                        parsedMetadata = row.metadata;
+                    }
+                }
+
+                return {
+                    id: row.id,
+                    description: row.description,
+                    created_at: row.created_at,
+                    ip_address: row.ip_address,
+                    user_agent: row.user_agent,
+                    metadata: parsedMetadata
+                };
+            });
+
+            return res.json({
+                success: true,
+                documentId,
+                count: history.length,
+                history
+            });
+        } catch (error) {
+            console.error(
+                "GET DOCUMENT AUDIT HISTORY ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                success: false,
+                message:
+                    "Failed to retrieve document audit history."
+            });
+        }
+    }
+);
+
 module.exports = router;
