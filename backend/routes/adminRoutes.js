@@ -236,6 +236,12 @@ router.get(
                 });
             }
 
+            /*
+            Security hardening:
+            Do NOT retrieve the actual password hash
+            or Google ID. Only retrieve whether each
+            authentication method is configured.
+            */
             const [users] = await db.query(
                 `
                 SELECT
@@ -245,8 +251,14 @@ router.get(
                     phone,
                     role,
                     created_at,
-                    password,
-                    google_id
+                    (
+                        password IS NOT NULL
+                        AND password <> ''
+                    ) AS password_configured,
+                    (
+                        google_id IS NOT NULL
+                        AND google_id <> ''
+                    ) AS google_connected
                 FROM users
                 WHERE id = ?
                   AND role = 'citizen'
@@ -335,10 +347,14 @@ router.get(
 
                     security: {
                         passwordConfigured:
-                            Boolean(user.password),
+                            Boolean(
+                                user.password_configured
+                            ),
 
                         googleConnected:
-                            Boolean(user.google_id),
+                            Boolean(
+                                user.google_connected
+                            ),
 
                         documentSecurityConfigured:
                             securityRows.length > 0
@@ -431,16 +447,22 @@ router.get(
                 documents: documents.map(
                     (document) => ({
                         id: document.id,
+
                         fileName:
                             document.file_name,
+
                         fileType:
                             document.file_type,
+
                         uploadedAt:
                             document.uploaded_at,
+
                         documentHash:
                             document.document_hash || null,
+
                         blockchainTxHash:
                             document.blockchain_tx_hash || null,
+
                         blockchainStatus:
                             document.blockchain_status || null
                     })
@@ -534,21 +556,30 @@ router.get(
 
                 audit: auditRows.map(
                     (row) => ({
-                        id: row.id,
+                        id:
+                            row.id,
+
                         entityType:
                             row.entity_type,
+
                         entityId:
                             row.entity_id,
+
                         action:
                             row.action,
+
                         description:
                             row.description,
+
                         ipAddress:
                             row.ip_address,
+
                         userAgent:
                             row.user_agent,
+
                         metadata:
                             row.metadata,
+
                         createdAt:
                             row.created_at
                     })
@@ -671,14 +702,19 @@ router.get(
                 advocates: rows.map(
                     (lawyer) => ({
                         id: lawyer.id,
+
                         fullName:
                             lawyer.full_name,
+
                         email:
                             lawyer.email,
+
                         phone:
                             lawyer.phone || "",
+
                         role:
                             lawyer.role,
+
                         createdAt:
                             lawyer.created_at,
 
@@ -754,6 +790,12 @@ router.get(
                 });
             }
 
+            /*
+            Security hardening:
+            Do NOT retrieve the actual password hash
+            or Google ID. Only retrieve whether each
+            authentication method is configured.
+            */
             const [rows] =
                 await db.query(
                     `
@@ -764,8 +806,16 @@ router.get(
                         u.phone,
                         u.role,
                         u.created_at,
-                        u.password,
-                        u.google_id,
+
+                        (
+                            u.password IS NOT NULL
+                            AND u.password <> ''
+                        ) AS password_configured,
+
+                        (
+                            u.google_id IS NOT NULL
+                            AND u.google_id <> ''
+                        ) AS google_connected,
 
                         l.id AS lawyer_id,
                         l.specialization,
@@ -846,7 +896,8 @@ router.get(
                 success: true,
 
                 advocate: {
-                    id: advocate.id,
+                    id:
+                        advocate.id,
 
                     fullName:
                         advocate.full_name,
@@ -911,12 +962,12 @@ router.get(
                     security: {
                         passwordConfigured:
                             Boolean(
-                                advocate.password
+                                advocate.password_configured
                             ),
 
                         googleConnected:
                             Boolean(
-                                advocate.google_id
+                                advocate.google_connected
                             ),
 
                         documentSecurityConfigured:
@@ -1011,17 +1062,24 @@ router.get(
 
                 documents: documents.map(
                     (document) => ({
-                        id: document.id,
+                        id:
+                            document.id,
+
                         fileName:
                             document.file_name,
+
                         fileType:
                             document.file_type,
+
                         uploadedAt:
                             document.uploaded_at,
+
                         documentHash:
                             document.document_hash || null,
+
                         blockchainTxHash:
                             document.blockchain_tx_hash || null,
+
                         blockchainStatus:
                             document.blockchain_status || null
                     })
