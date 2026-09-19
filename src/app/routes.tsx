@@ -7,6 +7,9 @@ import AdminAdvocates from '../pages/admin/AdminAdvocates'
 import AdminUserDetail from '../pages/admin/AdminUserDetail'
 import AdminAdvocateDetail from '../pages/admin/AdminAdvocateDetail'
 
+import ManagementLogin from '../pages/ManagementLogin'
+import ManagementDashboard from '../pages/ManagementDashboard'
+
 import RootLayout from '../components/layout/RootLayout'
 import DashboardLayout from '../components/layout/DashboardLayout'
 
@@ -317,6 +320,30 @@ export const router = createBrowserRouter([
   {
     path: 'admin/advocates/:advocateId',
     Component: AdminAdvocateDetail,
+  },
+
+  // =====================================================
+  // MANAGEMENT
+  // =====================================================
+
+  // -----------------------------------------------------
+  // MANAGEMENT LOGIN
+  // /managementlogin
+  // -----------------------------------------------------
+
+  {
+    path: 'managementlogin',
+    Component: ManagementLogin,
+  },
+
+  // -----------------------------------------------------
+  // MANAGEMENT DASHBOARD
+  // /management
+  // -----------------------------------------------------
+
+  {
+    path: 'management',
+    Component: ManagementDashboard,
   },
 
   // =====================================================
