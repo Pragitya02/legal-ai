@@ -15,6 +15,7 @@ const db = require("../db");
 
 const router = express.Router();
 
+
 /*
 =====================================================
 MANAGEMENT LOGIN
@@ -199,6 +200,7 @@ router.get(
 
             return res.json({
                 success: true,
+
                 users: rows.map((user) => ({
                     id: user.id,
                     fullName:
@@ -224,6 +226,160 @@ router.get(
                 success: false,
                 message:
                     "Failed to load management users."
+            });
+        }
+    }
+);
+
+
+/*
+=====================================================
+GET MANAGEMENT ADVOCATES
+GET /api/management/advocates
+=====================================================
+*/
+
+router.get(
+    "/advocates",
+    managementMiddleware,
+    async (req, res) => {
+        try {
+            const search =
+                typeof req.query.search === "string"
+                    ? req.query.search.trim()
+                    : "";
+
+            let limit =
+                Number(req.query.limit || 100);
+
+            if (
+                !Number.isInteger(limit) ||
+                limit < 1
+            ) {
+                limit = 100;
+            }
+
+            limit = Math.min(limit, 100);
+
+            let sql = `
+                SELECT
+                    u.id,
+                    u.full_name,
+                    u.email,
+                    u.phone,
+                    u.role,
+                    u.created_at,
+
+                    l.id AS lawyer_id,
+                    l.specialization,
+                    l.experience,
+                    l.location,
+                    l.bio,
+                    l.verified,
+                    l.high_court,
+                    l.enrollment_year
+
+                FROM users u
+
+                LEFT JOIN lawyers l
+                    ON l.user_id = u.id
+
+                WHERE u.role = 'lawyer'
+            `;
+
+            const params = [];
+
+            if (search) {
+                sql += `
+                    AND (
+                        u.full_name LIKE ?
+                        OR u.email LIKE ?
+                        OR u.phone LIKE ?
+                        OR l.specialization LIKE ?
+                        OR l.location LIKE ?
+                    )
+                `;
+
+                const pattern = `%${search}%`;
+
+                params.push(
+                    pattern,
+                    pattern,
+                    pattern,
+                    pattern,
+                    pattern
+                );
+            }
+
+            sql += `
+                ORDER BY u.created_at DESC
+                LIMIT ?
+            `;
+
+            params.push(limit);
+
+            const [rows] = await db.query(
+                sql,
+                params
+            );
+
+            return res.json({
+                success: true,
+
+                advocates: rows.map((lawyer) => ({
+                    id: lawyer.id,
+
+                    fullName:
+                        lawyer.full_name || "",
+
+                    email:
+                        lawyer.email || "",
+
+                    phone:
+                        lawyer.phone || "",
+
+                    role:
+                        lawyer.role,
+
+                    createdAt:
+                        lawyer.created_at,
+
+                    lawyerId:
+                        lawyer.lawyer_id || null,
+
+                    specialization:
+                        lawyer.specialization || "",
+
+                    experience:
+                        lawyer.experience || "",
+
+                    location:
+                        lawyer.location || "",
+
+                    bio:
+                        lawyer.bio || "",
+
+                    verified:
+                        Boolean(lawyer.verified),
+
+                    highCourt:
+                        lawyer.high_court || "",
+
+                    enrollmentYear:
+                        lawyer.enrollment_year || ""
+                }))
+            });
+
+        } catch (error) {
+            console.error(
+                "MANAGEMENT ADVOCATES ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                success: false,
+                message:
+                    "Failed to load management advocates."
             });
         }
     }
