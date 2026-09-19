@@ -271,7 +271,10 @@ export default function ManagementDashboard() {
 
           <button
             type="button"
-            className="rounded-2xl border p-6 text-left"
+            onClick={() =>
+              navigate('/management/reports')
+            }
+            className="rounded-2xl border p-6 text-left transition-opacity hover:opacity-85"
             style={{
               borderColor: 'var(--border)',
               background: 'var(--card)',

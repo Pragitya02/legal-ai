@@ -386,4 +386,428 @@ router.get(
 );
 
 
+/*
+=====================================================
+GET MANAGEMENT REPORTS
+GET /api/management/reports
+=====================================================
+
+Read-only access to the existing:
+
+- meeting_reports
+- meeting_feedback
+
+tables.
+
+No report status is changed here.
+=====================================================
+*/
+
+router.get(
+    "/reports",
+    managementMiddleware,
+    async (req, res) => {
+        try {
+            const search =
+                typeof req.query.search === "string"
+                    ? req.query.search.trim()
+                    : "";
+
+            const status =
+                typeof req.query.status === "string"
+                    ? req.query.status.trim().toLowerCase()
+                    : "";
+
+            const category =
+                typeof req.query.category === "string"
+                    ? req.query.category.trim()
+                    : "";
+
+            let limit =
+                Number(req.query.limit || 100);
+
+            if (
+                !Number.isInteger(limit) ||
+                limit < 1
+            ) {
+                limit = 100;
+            }
+
+            limit = Math.min(limit, 100);
+
+
+            /*
+            =========================================
+            REPORT LIST
+            =========================================
+            */
+
+            let reportSql = `
+                SELECT
+                    mr.id,
+                    mr.appointment_id,
+                    mr.reporter_id,
+                    mr.reported_user_id,
+                    mr.category,
+                    mr.custom_reason,
+                    mr.details,
+                    mr.status,
+                    mr.created_at,
+
+                    reporter.full_name
+                        AS reporter_name,
+
+                    reporter.email
+                        AS reporter_email,
+
+                    reporter.role
+                        AS reporter_role,
+
+                    reported.full_name
+                        AS reported_user_name,
+
+                    reported.email
+                        AS reported_user_email,
+
+                    reported.role
+                        AS reported_user_role
+
+                FROM meeting_reports mr
+
+                LEFT JOIN users reporter
+                    ON reporter.id =
+                       mr.reporter_id
+
+                LEFT JOIN users reported
+                    ON reported.id =
+                       mr.reported_user_id
+
+                WHERE 1 = 1
+            `;
+
+            const reportParams = [];
+
+
+            /*
+            SEARCH
+            */
+
+            if (search) {
+                reportSql += `
+                    AND (
+                        CAST(mr.id AS CHAR)
+                            LIKE ?
+
+                        OR CAST(
+                            mr.appointment_id
+                            AS CHAR
+                        ) LIKE ?
+
+                        OR reporter.full_name
+                            LIKE ?
+
+                        OR reporter.email
+                            LIKE ?
+
+                        OR reported.full_name
+                            LIKE ?
+
+                        OR reported.email
+                            LIKE ?
+
+                        OR mr.category
+                            LIKE ?
+
+                        OR mr.custom_reason
+                            LIKE ?
+
+                        OR mr.details
+                            LIKE ?
+                    )
+                `;
+
+                const pattern =
+                    `%${search}%`;
+
+                reportParams.push(
+                    pattern,
+                    pattern,
+                    pattern,
+                    pattern,
+                    pattern,
+                    pattern,
+                    pattern,
+                    pattern,
+                    pattern
+                );
+            }
+
+
+            /*
+            STATUS FILTER
+            */
+
+            if (status) {
+                reportSql += `
+                    AND LOWER(mr.status) = ?
+                `;
+
+                reportParams.push(status);
+            }
+
+
+            /*
+            CATEGORY FILTER
+            */
+
+            if (category) {
+                reportSql += `
+                    AND mr.category = ?
+                `;
+
+                reportParams.push(category);
+            }
+
+
+            reportSql += `
+                ORDER BY
+                    mr.created_at DESC,
+                    mr.id DESC
+
+                LIMIT ?
+            `;
+
+            reportParams.push(limit);
+
+
+            const [reportRows] =
+                await db.query(
+                    reportSql,
+                    reportParams
+                );
+
+
+            /*
+            =========================================
+            TOTAL REPORTS
+            =========================================
+            */
+
+            const [totalRows] =
+                await db.query(`
+                    SELECT
+                        COUNT(*) AS total_reports,
+
+                        SUM(
+                            CASE
+                                WHEN LOWER(status)
+                                    = 'open'
+                                THEN 1
+                                ELSE 0
+                            END
+                        ) AS open_reports,
+
+                        SUM(
+                            CASE
+                                WHEN LOWER(status)
+                                    = 'resolved'
+                                THEN 1
+                                ELSE 0
+                            END
+                        ) AS resolved_reports
+
+                    FROM meeting_reports
+                `);
+
+
+            /*
+            =========================================
+            REPORT CATEGORIES
+            =========================================
+            */
+
+            const [categoryRows] =
+                await db.query(`
+                    SELECT
+                        category,
+                        COUNT(*) AS count
+
+                    FROM meeting_reports
+
+                    GROUP BY category
+
+                    ORDER BY count DESC
+                `);
+
+
+            /*
+            =========================================
+            FEEDBACK STATISTICS
+            =========================================
+            */
+
+            const [feedbackRows] =
+                await db.query(`
+                    SELECT
+                        COUNT(*) AS total_feedback,
+
+                        ROUND(
+                            AVG(
+                                CASE
+                                    WHEN rating
+                                        BETWEEN 1 AND 5
+                                    THEN rating
+                                    ELSE NULL
+                                END
+                            ),
+                            1
+                        ) AS average_rating
+
+                    FROM meeting_feedback
+                `);
+
+
+            const totals =
+                totalRows[0] || {};
+
+            const feedback =
+                feedbackRows[0] || {};
+
+
+            return res.json({
+                success: true,
+
+                summary: {
+                    totalReports:
+                        Number(
+                            totals.total_reports ||
+                            0
+                        ),
+
+                    openReports:
+                        Number(
+                            totals.open_reports ||
+                            0
+                        ),
+
+                    resolvedReports:
+                        Number(
+                            totals.resolved_reports ||
+                            0
+                        ),
+
+                    totalFeedback:
+                        Number(
+                            feedback.total_feedback ||
+                            0
+                        ),
+
+                    averageRating:
+                        feedback.average_rating ===
+                        null
+                            ? 0
+                            : Number(
+                                feedback.average_rating ||
+                                0
+                            )
+                },
+
+                categories:
+                    categoryRows.map(
+                        (row) => ({
+                            category:
+                                row.category,
+
+                            count:
+                                Number(
+                                    row.count || 0
+                                )
+                        })
+                    ),
+
+                reports:
+                    reportRows.map(
+                        (report) => ({
+                            id:
+                                Number(
+                                    report.id
+                                ),
+
+                            appointmentId:
+                                Number(
+                                    report.appointment_id
+                                ),
+
+                            reporterId:
+                                Number(
+                                    report.reporter_id
+                                ),
+
+                            reporterName:
+                                report.reporter_name ||
+                                "Unknown",
+
+                            reporterEmail:
+                                report.reporter_email ||
+                                "",
+
+                            reporterRole:
+                                report.reporter_role ||
+                                "",
+
+                            reportedUserId:
+                                Number(
+                                    report.reported_user_id
+                                ),
+
+                            reportedUserName:
+                                report.reported_user_name ||
+                                "Unknown",
+
+                            reportedUserEmail:
+                                report.reported_user_email ||
+                                "",
+
+                            reportedUserRole:
+                                report.reported_user_role ||
+                                "",
+
+                            category:
+                                report.category ||
+                                "other",
+
+                            customReason:
+                                report.custom_reason ||
+                                "",
+
+                            details:
+                                report.details ||
+                                "",
+
+                            status:
+                                report.status ||
+                                "open",
+
+                            createdAt:
+                                report.created_at
+                        })
+                    )
+            });
+
+        } catch (error) {
+            console.error(
+                "MANAGEMENT REPORTS ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                success: false,
+                message:
+                    "Failed to load management reports."
+            });
+        }
+    }
+);
+
+
 module.exports = router;

@@ -11,6 +11,7 @@ import ManagementLogin from '../pages/ManagementLogin'
 import ManagementDashboard from '../pages/ManagementDashboard'
 import ManagementUsers from '../pages/management/ManagementUsers'
 import ManagementAdvocates from '../pages/management/ManagementAdvocates'
+import ManagementReports from '../pages/management/ManagementReports'
 
 import RootLayout from '../components/layout/RootLayout'
 import DashboardLayout from '../components/layout/DashboardLayout'
@@ -318,6 +319,11 @@ export const router = createBrowserRouter([
   {
     path: 'management/advocates',
     Component: ManagementAdvocates,
+  },
+
+  {
+    path: 'management/reports',
+    Component: ManagementReports,
   },
 
   // =====================================================
