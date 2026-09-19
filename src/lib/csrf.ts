@@ -110,7 +110,7 @@ function isAuthEndpoint(url: string): boolean {
     )
 
     const path = parsed.pathname.replace(
-      /\/$/,
+      /\/+$/,
       ''
     )
 
@@ -389,6 +389,44 @@ function scheduleSilentRefresh(
 }
 
 // =====================================================
+// CHECK FOR CSRF VALIDATION FAILURE
+// =====================================================
+//
+// Only a backend CSRF rejection should trigger the
+// automatic token refresh/retry.
+//
+// Other 403 responses must pass through unchanged.
+//
+// =====================================================
+
+async function isCsrfValidationFailure(
+  response: Response
+): Promise<boolean> {
+  if (response.status !== 403) {
+    return false
+  }
+
+  try {
+    const data = await response
+      .clone()
+      .json()
+      .catch(() => null)
+
+    const message =
+      typeof data?.message === 'string'
+        ? data.message.toLowerCase()
+        : ''
+
+    return (
+      message.includes('csrf token') ||
+      message.includes('csrf')
+    )
+  } catch {
+    return false
+  }
+}
+
+// =====================================================
 // INSTALL GLOBAL FETCH PROTECTION
 // =====================================================
 
@@ -585,6 +623,84 @@ export function installCsrfProtection(): void {
           '[AUTH] Retrying request:',
           url
         )
+
+        response =
+          await originalFetch(
+            retryInput,
+            init
+          )
+      }
+    }
+
+    // =================================================
+    // 403 CSRF FALLBACK
+    // =================================================
+    //
+    // The backend can rotate the CSRF cookie during an
+    // authentication/session refresh while the frontend
+    // still holds the previous token in memory.
+    //
+    // If the backend explicitly rejects that token,
+    // obtain a fresh token and retry the request once.
+    //
+    // CSRF protection is NOT bypassed: the retried request
+    // contains a newly issued token and is validated again
+    // by the backend.
+    //
+    // =================================================
+
+    if (
+      response.status === 403 &&
+      UNSAFE_METHODS.has(method) &&
+      isProtected &&
+      !isAuthEndpoint(url) &&
+      await isCsrfValidationFailure(response)
+    ) {
+      console.warn(
+        '[CSRF] Token rejected. Refreshing CSRF token and retrying once:',
+        url
+      )
+
+      const freshCsrfToken =
+        await ensureCsrfToken(true)
+
+      if (freshCsrfToken) {
+        const headers =
+          new Headers(
+            init.headers ??
+            (
+              isRequestObject
+                ? (input as Request).headers
+                : undefined
+            )
+          )
+
+        headers.set(
+          CSRF_HEADER_NAME,
+          freshCsrfToken
+        )
+
+        init = {
+          ...init,
+          headers,
+        }
+
+        // Request bodies can only be consumed once.
+        // Clone Request objects before retrying.
+        let retryInput:
+          RequestInfo | URL =
+          input
+
+        if (isRequestObject) {
+          try {
+            retryInput =
+              (input as Request).clone()
+          } catch {
+            // If the request cannot be cloned,
+            // return the original 403.
+            return response
+          }
+        }
 
         response =
           await originalFetch(

@@ -128,6 +128,7 @@ const uploadRoutes = require("./routes/uploadRoutes");
 const documentSecurityRoutes = require("./routes/documentSecurityRoutes");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const managementRoutes = require("./routes/managementRoutes");
 const lawyerRoutes = require("./routes/lawyerRoutes");
 const voiceRoutes = require("./routes/voiceRoutes");
 const chatRoutes = require("./routes/chatRoutes");
@@ -355,9 +356,18 @@ app.use(
     authLimiter,
     adminRoutes
 );
+// -----------------------------------------------------
+// Management
+// -----------------------------------------------------
+
+app.use(
+    "/api/management",
+    authLimiter,
+    managementRoutes
+);
 
 // -----------------------------------------------------
-// Voice
+// VOICE
 // -----------------------------------------------------
 
 app.use(
