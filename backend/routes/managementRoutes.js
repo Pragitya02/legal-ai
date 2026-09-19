@@ -9,7 +9,8 @@ const {
     issueSession
 } = require("../services/sessionService");
 
-const managementMiddleware = require("../middleware/managementMiddleware");
+const managementMiddleware =
+    require("../middleware/managementMiddleware");
 
 const db = require("../db");
 
@@ -34,9 +35,11 @@ router.post("/login", async (req, res) => {
             });
         }
 
-        const cleanEmail = email.trim().toLowerCase();
+        const cleanEmail =
+            email.trim().toLowerCase();
 
-        const user = await findUserByEmail(cleanEmail);
+        const user =
+            await findUserByEmail(cleanEmail);
 
         if (!user || !user.password) {
             return res.status(401).json({
@@ -45,10 +48,11 @@ router.post("/login", async (req, res) => {
             });
         }
 
-        const validPassword = await bcrypt.compare(
-            password,
-            user.password
-        );
+        const validPassword =
+            await bcrypt.compare(
+                password,
+                user.password
+            );
 
         if (!validPassword) {
             return res.status(401).json({
@@ -68,7 +72,8 @@ router.post("/login", async (req, res) => {
 
         return res.json({
             success: true,
-            message: "Management login successful.",
+            message:
+                "Management login successful.",
             user: {
                 id: user.id,
                 fullName: user.full_name,
@@ -78,7 +83,10 @@ router.post("/login", async (req, res) => {
         });
 
     } catch (error) {
-        console.error("MANAGEMENT LOGIN ERROR:", error);
+        console.error(
+            "MANAGEMENT LOGIN ERROR:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
@@ -177,7 +185,8 @@ router.get(
                     )
                 `;
 
-                const pattern = `%${search}%`;
+                const pattern =
+                    `%${search}%`;
 
                 params.push(
                     pattern,
@@ -193,24 +202,30 @@ router.get(
 
             params.push(limit);
 
-            const [rows] = await db.query(
-                sql,
-                params
-            );
+            const [rows] =
+                await db.query(
+                    sql,
+                    params
+                );
 
             return res.json({
                 success: true,
 
                 users: rows.map((user) => ({
                     id: user.id,
+
                     fullName:
                         user.full_name || "",
+
                     email:
                         user.email || "",
+
                     phone:
                         user.phone || "",
+
                     role:
                         user.role,
+
                     createdAt:
                         user.created_at
                 }))
@@ -300,7 +315,8 @@ router.get(
                     )
                 `;
 
-                const pattern = `%${search}%`;
+                const pattern =
+                    `%${search}%`;
 
                 params.push(
                     pattern,
@@ -318,56 +334,60 @@ router.get(
 
             params.push(limit);
 
-            const [rows] = await db.query(
-                sql,
-                params
-            );
+            const [rows] =
+                await db.query(
+                    sql,
+                    params
+                );
 
             return res.json({
                 success: true,
 
-                advocates: rows.map((lawyer) => ({
-                    id: lawyer.id,
+                advocates:
+                    rows.map((lawyer) => ({
+                        id: lawyer.id,
 
-                    fullName:
-                        lawyer.full_name || "",
+                        fullName:
+                            lawyer.full_name || "",
 
-                    email:
-                        lawyer.email || "",
+                        email:
+                            lawyer.email || "",
 
-                    phone:
-                        lawyer.phone || "",
+                        phone:
+                            lawyer.phone || "",
 
-                    role:
-                        lawyer.role,
+                        role:
+                            lawyer.role,
 
-                    createdAt:
-                        lawyer.created_at,
+                        createdAt:
+                            lawyer.created_at,
 
-                    lawyerId:
-                        lawyer.lawyer_id || null,
+                        lawyerId:
+                            lawyer.lawyer_id || null,
 
-                    specialization:
-                        lawyer.specialization || "",
+                        specialization:
+                            lawyer.specialization || "",
 
-                    experience:
-                        lawyer.experience || "",
+                        experience:
+                            lawyer.experience || "",
 
-                    location:
-                        lawyer.location || "",
+                        location:
+                            lawyer.location || "",
 
-                    bio:
-                        lawyer.bio || "",
+                        bio:
+                            lawyer.bio || "",
 
-                    verified:
-                        Boolean(lawyer.verified),
+                        verified:
+                            Boolean(
+                                lawyer.verified
+                            ),
 
-                    highCourt:
-                        lawyer.high_court || "",
+                        highCourt:
+                            lawyer.high_court || "",
 
-                    enrollmentYear:
-                        lawyer.enrollment_year || ""
-                }))
+                        enrollmentYear:
+                            lawyer.enrollment_year || ""
+                    }))
             });
 
         } catch (error) {
@@ -388,18 +408,369 @@ router.get(
 
 /*
 =====================================================
+GET MANAGEMENT CONSULTATIONS
+GET /api/management/consultations
+=====================================================
+
+READ-ONLY.
+
+Uses existing:
+- appointments
+- users
+- consultation_meetings
+
+No database mutation occurs here.
+=====================================================
+*/
+
+router.get(
+    "/consultations",
+    managementMiddleware,
+    async (req, res) => {
+        try {
+            const search =
+                typeof req.query.search === "string"
+                    ? req.query.search.trim()
+                    : "";
+
+            const status =
+                typeof req.query.status === "string"
+                    ? req.query.status.trim().toLowerCase()
+                    : "";
+
+            let limit =
+                Number(req.query.limit || 100);
+
+            if (
+                !Number.isInteger(limit) ||
+                limit < 1
+            ) {
+                limit = 100;
+            }
+
+            limit = Math.min(limit, 100);
+
+            let sql = `
+                SELECT
+                    a.id,
+                    a.citizen_id,
+                    a.lawyer_id,
+
+                    DATE_FORMAT(
+                        a.appointment_date,
+                        '%Y-%m-%d %H:%i:%s'
+                    ) AS appointment_date,
+
+                    a.status,
+                    a.notes,
+                    a.created_at,
+
+                    citizen.full_name
+                        AS citizen_name,
+
+                    citizen.email
+                        AS citizen_email,
+
+                    advocate.full_name
+                        AS advocate_name,
+
+                    advocate.email
+                        AS advocate_email,
+
+                    cm.id
+                        AS meeting_id,
+
+                    DATE_FORMAT(
+                        cm.scheduled_start,
+                        '%Y-%m-%d %H:%i:%s'
+                    ) AS scheduled_start,
+
+                    DATE_FORMAT(
+                        cm.scheduled_end,
+                        '%Y-%m-%d %H:%i:%s'
+                    ) AS scheduled_end,
+
+                    cm.room_name
+
+                FROM appointments a
+
+                INNER JOIN users citizen
+                    ON citizen.id = a.citizen_id
+
+                INNER JOIN users advocate
+                    ON advocate.id = a.lawyer_id
+
+                LEFT JOIN consultation_meetings cm
+                    ON cm.appointment_id = a.id
+
+                WHERE 1 = 1
+            `;
+
+            const params = [];
+
+            /*
+            =========================================
+            SEARCH
+            =========================================
+            */
+
+            if (search) {
+                sql += `
+                    AND (
+                        CAST(a.id AS CHAR)
+                            LIKE ?
+
+                        OR citizen.full_name
+                            LIKE ?
+
+                        OR citizen.email
+                            LIKE ?
+
+                        OR advocate.full_name
+                            LIKE ?
+
+                        OR advocate.email
+                            LIKE ?
+
+                        OR a.notes
+                            LIKE ?
+                    )
+                `;
+
+                const pattern =
+                    `%${search}%`;
+
+                params.push(
+                    pattern,
+                    pattern,
+                    pattern,
+                    pattern,
+                    pattern,
+                    pattern
+                );
+            }
+
+            /*
+            =========================================
+            STATUS FILTER
+            =========================================
+            */
+
+            if (status) {
+                sql += `
+                    AND LOWER(a.status) = ?
+                `;
+
+                params.push(status);
+            }
+
+            /*
+            =========================================
+            ORDER
+            =========================================
+            */
+
+            sql += `
+                ORDER BY
+                    a.appointment_date DESC,
+                    a.id DESC
+
+                LIMIT ?
+            `;
+
+            params.push(limit);
+
+            const [rows] =
+                await db.query(
+                    sql,
+                    params
+                );
+
+            /*
+            =========================================
+            SUMMARY
+            =========================================
+            */
+
+            const [summaryRows] =
+                await db.query(`
+                    SELECT
+                        COUNT(*) AS total_consultations,
+
+                        SUM(
+                            CASE
+                                WHEN status = 'pending'
+                                THEN 1
+                                ELSE 0
+                            END
+                        ) AS pending_consultations,
+
+                        SUM(
+                            CASE
+                                WHEN status = 'confirmed'
+                                THEN 1
+                                ELSE 0
+                            END
+                        ) AS confirmed_consultations,
+
+                        SUM(
+                            CASE
+                                WHEN status = 'completed'
+                                THEN 1
+                                ELSE 0
+                            END
+                        ) AS completed_consultations,
+
+                        SUM(
+                            CASE
+                                WHEN status = 'cancelled'
+                                THEN 1
+                                ELSE 0
+                            END
+                        ) AS cancelled_consultations
+
+                    FROM appointments
+                `);
+
+            const summary =
+                summaryRows[0] || {};
+
+            return res.json({
+                success: true,
+
+                summary: {
+                    totalConsultations:
+                        Number(
+                            summary.total_consultations ||
+                            0
+                        ),
+
+                    pendingConsultations:
+                        Number(
+                            summary.pending_consultations ||
+                            0
+                        ),
+
+                    confirmedConsultations:
+                        Number(
+                            summary.confirmed_consultations ||
+                            0
+                        ),
+
+                    completedConsultations:
+                        Number(
+                            summary.completed_consultations ||
+                            0
+                        ),
+
+                    cancelledConsultations:
+                        Number(
+                            summary.cancelled_consultations ||
+                            0
+                        )
+                },
+
+                consultations:
+                    rows.map(
+                        (appointment) => ({
+                            id:
+                                Number(
+                                    appointment.id
+                                ),
+
+                            citizenId:
+                                Number(
+                                    appointment.citizen_id
+                                ),
+
+                            citizenName:
+                                appointment.citizen_name ||
+                                "Unknown",
+
+                            citizenEmail:
+                                appointment.citizen_email ||
+                                "",
+
+                            advocateId:
+                                Number(
+                                    appointment.lawyer_id
+                                ),
+
+                            advocateName:
+                                appointment.advocate_name ||
+                                "Unknown",
+
+                            advocateEmail:
+                                appointment.advocate_email ||
+                                "",
+
+                            appointmentDate:
+                                appointment.appointment_date,
+
+                            status:
+                                appointment.status ||
+                                "unknown",
+
+                            notes:
+                                appointment.notes ||
+                                "",
+
+                            meetingId:
+                                appointment.meeting_id
+                                    ? Number(
+                                        appointment.meeting_id
+                                    )
+                                    : null,
+
+                            scheduledStart:
+                                appointment.scheduled_start ||
+                                null,
+
+                            scheduledEnd:
+                                appointment.scheduled_end ||
+                                null,
+
+                            roomName:
+                                appointment.room_name ||
+                                null,
+
+                            mode:
+                                appointment.notes &&
+                                appointment.notes.includes(
+                                    "mode=video"
+                                )
+                                    ? "Video"
+                                    : "Consultation"
+                        })
+                    )
+            });
+
+        } catch (error) {
+            console.error(
+                "MANAGEMENT CONSULTATIONS ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                success: false,
+                message:
+                    "Failed to load management consultations."
+            });
+        }
+    }
+);
+
+
+/*
+=====================================================
 GET MANAGEMENT REPORTS
 GET /api/management/reports
 =====================================================
 
-Read-only access to the existing:
+Read-only access to:
 
 - meeting_reports
 - meeting_feedback
-
-tables.
-
-No report status is changed here.
 =====================================================
 */
 
@@ -434,13 +805,6 @@ router.get(
             }
 
             limit = Math.min(limit, 100);
-
-
-            /*
-            =========================================
-            REPORT LIST
-            =========================================
-            */
 
             let reportSql = `
                 SELECT
@@ -486,11 +850,6 @@ router.get(
             `;
 
             const reportParams = [];
-
-
-            /*
-            SEARCH
-            */
 
             if (search) {
                 reportSql += `
@@ -542,11 +901,6 @@ router.get(
                 );
             }
 
-
-            /*
-            STATUS FILTER
-            */
-
             if (status) {
                 reportSql += `
                     AND LOWER(mr.status) = ?
@@ -555,11 +909,6 @@ router.get(
                 reportParams.push(status);
             }
 
-
-            /*
-            CATEGORY FILTER
-            */
-
             if (category) {
                 reportSql += `
                     AND mr.category = ?
@@ -567,7 +916,6 @@ router.get(
 
                 reportParams.push(category);
             }
-
 
             reportSql += `
                 ORDER BY
@@ -579,19 +927,11 @@ router.get(
 
             reportParams.push(limit);
 
-
             const [reportRows] =
                 await db.query(
                     reportSql,
                     reportParams
                 );
-
-
-            /*
-            =========================================
-            TOTAL REPORTS
-            =========================================
-            */
 
             const [totalRows] =
                 await db.query(`
@@ -619,13 +959,6 @@ router.get(
                     FROM meeting_reports
                 `);
 
-
-            /*
-            =========================================
-            REPORT CATEGORIES
-            =========================================
-            */
-
             const [categoryRows] =
                 await db.query(`
                     SELECT
@@ -638,13 +971,6 @@ router.get(
 
                     ORDER BY count DESC
                 `);
-
-
-            /*
-            =========================================
-            FEEDBACK STATISTICS
-            =========================================
-            */
 
             const [feedbackRows] =
                 await db.query(`
@@ -666,13 +992,11 @@ router.get(
                     FROM meeting_feedback
                 `);
 
-
             const totals =
                 totalRows[0] || {};
 
             const feedback =
                 feedbackRows[0] || {};
-
 
             return res.json({
                 success: true,
