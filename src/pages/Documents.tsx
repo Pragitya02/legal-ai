@@ -48,7 +48,8 @@ type ProtectedAction =
   | "download"
   | "rename"
   | "delete"
-  | "verify_blockchain";
+  | "verify_blockchain"
+  | "register_blockchain";
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -426,6 +427,9 @@ export default function Documents() {
 
       case "verify_blockchain":
         return "verify this document on the blockchain";
+
+      case "register_blockchain":
+        return "register this document on the blockchain";
 
       default:
         return "continue";
@@ -870,6 +874,15 @@ export default function Documents() {
       case "verify_blockchain":
         if (pendingDocument) {
           await performBlockchainVerify(
+            pendingDocument,
+            password
+          );
+        }
+        break;
+
+      case "register_blockchain":
+        if (pendingDocument) {
+          await performBlockchainRegister(
             pendingDocument,
             password
           );
@@ -1614,10 +1627,15 @@ export default function Documents() {
     };
 
   // =====================================================
-  // VERIFY ON BLOCKCHAIN REQUEST
+  // BLOCKCHAIN ACTION REQUEST
+  //
+  // The shield button performs the correct action based on
+  // the current document state:
+  // - registered -> verify the existing on-chain record
+  // - not registered / failed -> register (or retry) the hash
   // =====================================================
 
-  const verifyOnBlockchain = (
+  const handleBlockchainAction = (
     doc: Doc
   ) => {
     if (!doc.id) {
@@ -1628,7 +1646,7 @@ export default function Documents() {
     }
 
     if (verifyingBlockchainId) {
-      // Already verifying a document — ignore
+      // Already processing a document — ignore
       // duplicate clicks.
       return;
     }
@@ -1636,9 +1654,95 @@ export default function Documents() {
     setPendingDocument(doc);
 
     requireDocumentPassword(
-      "verify_blockchain"
+      doc.blockchainStatus === "registered"
+        ? "verify_blockchain"
+        : "register_blockchain"
     );
   };
+
+  // =====================================================
+  // REGISTER ON BLOCKCHAIN AFTER PASSWORD
+  // =====================================================
+
+  const performBlockchainRegister =
+    async (
+      doc: Doc,
+      documentPassword: string
+    ) => {
+      if (!doc.id) {
+        alert(
+          "Document ID not found."
+        );
+        return;
+      }
+
+      try {
+        setVerifyingBlockchainId(
+          doc.id
+        );
+
+        if (!isLoggedIn()) {
+          alert(
+            "Please login again."
+          );
+          return;
+        }
+
+        const response =
+          await fetch(
+            `${API_BASE}/api/documents/${doc.id}/blockchain/register`,
+            {
+              method: "POST",
+
+              credentials: "include",
+
+              headers: {
+                "X-Document-Password":
+                  documentPassword,
+              },
+            }
+          );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          !result.success
+        ) {
+          showToast(
+            result.message ||
+              "Unable to register document on blockchain."
+          );
+          return;
+        }
+
+        showToast(
+          "✓ Document registered on blockchain"
+        );
+
+        // Refresh the document list so the saved
+        // blockchain status, transaction hash and network
+        // returned by GET /api/documents are immediately
+        // visible in the UI.
+        await loadDocuments(
+          documentPassword
+        );
+      } catch (error) {
+        console.error(
+          "BLOCKCHAIN REGISTER ERROR:",
+          error
+        );
+
+        showToast(
+          "Blockchain registration failed"
+        );
+      } finally {
+        setVerifyingBlockchainId(
+          undefined
+        );
+      }
+    };
 
   // =====================================================
   // VERIFY ON BLOCKCHAIN AFTER PASSWORD
@@ -2450,16 +2554,20 @@ export default function Documents() {
                 />
               </button>
 
-              {/* VERIFY ON BLOCKCHAIN */}
+              {/* BLOCKCHAIN ACTION */}
 
               <button
-                title="Verify on Blockchain"
+                title={
+                  d.blockchainStatus === "registered"
+                    ? "Verify on Blockchain"
+                    : "Register on Blockchain"
+                }
                 disabled={
                   verifyingBlockchainId ===
                   d.id
                 }
                 onClick={() =>
-                  verifyOnBlockchain(d)
+                  handleBlockchainAction(d)
                 }
                 style={{
                   padding: 7,
@@ -2495,7 +2603,7 @@ export default function Documents() {
                 />
                 {verifyingBlockchainId ===
                 d.id
-                  ? "Verifying..."
+                  ? "Processing..."
                   : ""}
               </button>
 
@@ -3567,6 +3675,10 @@ export default function Documents() {
 
                 const verifyLabel = (() => {
                   if (!verifyResult) {
+                    if (status !== "registered") {
+                      return "Not registered yet — use \"Register on Blockchain\" to anchor this document hash.";
+                    }
+
                     return "Not checked yet — use \"Verify on Blockchain\" to check.";
                   }
                   switch (verifyResult.status) {
@@ -3737,6 +3849,51 @@ export default function Documents() {
                         {verifyLabel}
                       </div>
                     </div>
+
+                    {status !== "registered" && (
+                      <button
+                        onClick={() => {
+                          const doc =
+                            blockchainDetailsDoc;
+
+                          closeBlockchainDetails();
+                          setPendingDocument(doc);
+
+                          requireDocumentPassword(
+                            "register_blockchain"
+                          );
+                        }}
+                        disabled={
+                          verifyingBlockchainId ===
+                          blockchainDetailsDoc.id
+                        }
+                        style={{
+                          width: "100%",
+                          marginTop: 10,
+                          padding: "9px 14px",
+                          borderRadius: 8,
+                          border:
+                            "1px solid var(--border)",
+                          background:
+                            "var(--bg-card)",
+                          color: "var(--blue)",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                          cursor:
+                            verifyingBlockchainId ===
+                            blockchainDetailsDoc.id
+                              ? "not-allowed"
+                              : "pointer",
+                          opacity:
+                            verifyingBlockchainId ===
+                            blockchainDetailsDoc.id
+                              ? 0.6
+                              : 1,
+                        }}
+                      >
+                        Register on Blockchain
+                      </button>
+                    )}
 
                     {explorerUrl && (
                       <a
