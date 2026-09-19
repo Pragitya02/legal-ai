@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+
 import { useNavigate } from 'react-router'
+
 import {
   Users,
   Scale,
@@ -11,7 +13,8 @@ import {
 import { clearStoredUser } from '../lib/auth'
 
 const API_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:5001'
+  import.meta.env.VITE_API_URL ||
+  'http://localhost:5001'
 
 interface ManagementUser {
   id?: number | string
@@ -131,7 +134,9 @@ export default function ManagementDashboard() {
         <Loader2
           size={28}
           className="animate-spin"
-          style={{ color: '#D4AF37' }}
+          style={{
+            color: '#D4AF37',
+          }}
         />
       </main>
     )
@@ -155,7 +160,11 @@ export default function ManagementDashboard() {
           <div>
             <h1 className="text-2xl font-bold">
               Nyaya
-              <span style={{ color: '#D4AF37' }}>
+              <span
+                style={{
+                  color: '#D4AF37',
+                }}
+              >
                 AI
               </span>
             </h1>
@@ -179,6 +188,7 @@ export default function ManagementDashboard() {
             }}
           >
             <LogOut size={16} />
+
             Logout
           </button>
         </div>
@@ -196,7 +206,11 @@ export default function ManagementDashboard() {
 
         <div className="grid gap-5 md:grid-cols-3">
           <button
-            className="rounded-2xl border p-6 text-left"
+            type="button"
+            onClick={() =>
+              navigate('/management/users')
+            }
+            className="rounded-2xl border p-6 text-left transition-opacity hover:opacity-85"
             style={{
               borderColor: 'var(--border)',
               background: 'var(--card)',
@@ -204,7 +218,9 @@ export default function ManagementDashboard() {
           >
             <Users
               size={28}
-              style={{ color: '#D4AF37' }}
+              style={{
+                color: '#D4AF37',
+              }}
             />
 
             <h2 className="mt-4 text-lg font-semibold">
@@ -222,6 +238,7 @@ export default function ManagementDashboard() {
           </button>
 
           <button
+            type="button"
             className="rounded-2xl border p-6 text-left"
             style={{
               borderColor: 'var(--border)',
@@ -230,7 +247,9 @@ export default function ManagementDashboard() {
           >
             <Scale
               size={28}
-              style={{ color: '#D4AF37' }}
+              style={{
+                color: '#D4AF37',
+              }}
             />
 
             <h2 className="mt-4 text-lg font-semibold">
@@ -248,6 +267,7 @@ export default function ManagementDashboard() {
           </button>
 
           <button
+            type="button"
             className="rounded-2xl border p-6 text-left"
             style={{
               borderColor: 'var(--border)',
@@ -256,7 +276,9 @@ export default function ManagementDashboard() {
           >
             <FileBarChart
               size={28}
-              style={{ color: '#D4AF37' }}
+              style={{
+                color: '#D4AF37',
+              }}
             />
 
             <h2 className="mt-4 text-lg font-semibold">
@@ -269,7 +291,8 @@ export default function ManagementDashboard() {
                 color: 'var(--text-muted)',
               }}
             >
-              View operational and feedback reports.
+              View operational and feedback
+              reports.
             </p>
           </button>
         </div>

@@ -9,6 +9,7 @@ import AdminAdvocateDetail from '../pages/admin/AdminAdvocateDetail'
 
 import ManagementLogin from '../pages/ManagementLogin'
 import ManagementDashboard from '../pages/ManagementDashboard'
+import ManagementUsers from '../pages/management/ManagementUsers'
 
 import RootLayout from '../components/layout/RootLayout'
 import DashboardLayout from '../components/layout/DashboardLayout'
@@ -106,7 +107,6 @@ export const router = createBrowserRouter([
         Component: Booking,
       },
 
-      // Citizen meetings
       {
         path: 'meetings',
         Component: Meetings,
@@ -137,7 +137,6 @@ export const router = createBrowserRouter([
         Component: Documents,
       },
 
-      // Citizen booking status
       {
         path: 'bookings',
         Component: YourBookings,
@@ -189,7 +188,6 @@ export const router = createBrowserRouter([
         Component: AdvocateAvailability,
       },
 
-      // Advocate meetings
       {
         path: 'meetings',
         Component: AdvocateMeetings,
@@ -254,33 +252,16 @@ export const router = createBrowserRouter([
   // ADMINISTRATOR PORTAL
   // =====================================================
 
-  // -----------------------------------------------------
-  // ADMIN LOGIN
-  // /adminlogin
-  // -----------------------------------------------------
-
   {
     path: 'adminlogin',
     Component: AdminLogin,
   },
-
-  // -----------------------------------------------------
-  // ADMIN DASHBOARD
-  // /admin
-  // -----------------------------------------------------
 
   {
     path: 'admin',
     Component: AdminDashboard,
   },
 
-  // -----------------------------------------------------
-  // LEGACY ADMIN DASHBOARD URL
-  // /admin/dashboard
-  // -----------------------------------------------------
-
-  // Kept for compatibility with any existing links.
-  // AdminDashboard itself verifies the admin session.
   {
     path: 'admin/dashboard',
     Component: AdminDashboard,
@@ -290,15 +271,11 @@ export const router = createBrowserRouter([
   // ADMIN USERS
   // =====================================================
 
-  // User list
-  // /admin/users
   {
     path: 'admin/users',
     Component: AdminUsers,
   },
 
-  // Individual user
-  // /admin/users/:userId
   {
     path: 'admin/users/:userId',
     Component: AdminUserDetail,
@@ -308,15 +285,11 @@ export const router = createBrowserRouter([
   // ADMIN ADVOCATES
   // =====================================================
 
-  // Advocate list
-  // /admin/advocates
   {
     path: 'admin/advocates',
     Component: AdminAdvocates,
   },
 
-  // Individual advocate
-  // /admin/advocates/:advocateId
   {
     path: 'admin/advocates/:advocateId',
     Component: AdminAdvocateDetail,
@@ -326,24 +299,19 @@ export const router = createBrowserRouter([
   // MANAGEMENT
   // =====================================================
 
-  // -----------------------------------------------------
-  // MANAGEMENT LOGIN
-  // /managementlogin
-  // -----------------------------------------------------
-
   {
     path: 'managementlogin',
     Component: ManagementLogin,
   },
 
-  // -----------------------------------------------------
-  // MANAGEMENT DASHBOARD
-  // /management
-  // -----------------------------------------------------
-
   {
     path: 'management',
     Component: ManagementDashboard,
+  },
+
+  {
+    path: 'management/users',
+    Component: ManagementUsers,
   },
 
   // =====================================================

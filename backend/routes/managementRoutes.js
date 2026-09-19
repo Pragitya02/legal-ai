@@ -11,6 +11,8 @@ const {
 
 const managementMiddleware = require("../middleware/managementMiddleware");
 
+const db = require("../db");
+
 const router = express.Router();
 
 /*
@@ -92,26 +94,140 @@ GET /api/management/me
 =====================================================
 */
 
-router.get("/me", managementMiddleware, async (req, res) => {
-    try {
-        return res.json({
-            success: true,
-            user: {
-                id: req.user.id,
-                email: req.user.email,
-                role: req.user.role
-            }
-        });
+router.get(
+    "/me",
+    managementMiddleware,
+    async (req, res) => {
+        try {
+            return res.json({
+                success: true,
+                user: {
+                    id: req.user.id,
+                    email: req.user.email,
+                    role: req.user.role
+                }
+            });
 
-    } catch (error) {
-        console.error("MANAGEMENT ME ERROR:", error);
+        } catch (error) {
+            console.error(
+                "MANAGEMENT ME ERROR:",
+                error
+            );
 
-        return res.status(500).json({
-            success: false,
-            message: "Failed to load management session."
-        });
+            return res.status(500).json({
+                success: false,
+                message:
+                    "Failed to load management session."
+            });
+        }
     }
-});
+);
+
+
+/*
+=====================================================
+GET MANAGEMENT USERS
+GET /api/management/users
+=====================================================
+*/
+
+router.get(
+    "/users",
+    managementMiddleware,
+    async (req, res) => {
+        try {
+            const search =
+                typeof req.query.search === "string"
+                    ? req.query.search.trim()
+                    : "";
+
+            let limit =
+                Number(req.query.limit || 100);
+
+            if (
+                !Number.isInteger(limit) ||
+                limit < 1
+            ) {
+                limit = 100;
+            }
+
+            limit = Math.min(limit, 100);
+
+            let sql = `
+                SELECT
+                    id,
+                    full_name,
+                    email,
+                    phone,
+                    role,
+                    created_at
+                FROM users
+                WHERE role = 'citizen'
+            `;
+
+            const params = [];
+
+            if (search) {
+                sql += `
+                    AND (
+                        full_name LIKE ?
+                        OR email LIKE ?
+                        OR phone LIKE ?
+                    )
+                `;
+
+                const pattern = `%${search}%`;
+
+                params.push(
+                    pattern,
+                    pattern,
+                    pattern
+                );
+            }
+
+            sql += `
+                ORDER BY created_at DESC
+                LIMIT ?
+            `;
+
+            params.push(limit);
+
+            const [rows] = await db.query(
+                sql,
+                params
+            );
+
+            return res.json({
+                success: true,
+                users: rows.map((user) => ({
+                    id: user.id,
+                    fullName:
+                        user.full_name || "",
+                    email:
+                        user.email || "",
+                    phone:
+                        user.phone || "",
+                    role:
+                        user.role,
+                    createdAt:
+                        user.created_at
+                }))
+            });
+
+        } catch (error) {
+            console.error(
+                "MANAGEMENT USERS ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                success: false,
+                message:
+                    "Failed to load management users."
+            });
+        }
+    }
+);
 
 
 module.exports = router;
