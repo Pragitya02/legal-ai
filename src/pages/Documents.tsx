@@ -1338,11 +1338,9 @@ export default function Documents() {
               "X-Document-Password":
                 documentPassword || "",
             },
-
-            body: JSON.stringify({
-              fileName:
-                newName,
-            }),
+body: JSON.stringify({
+  file_name: newName,
+}),
           }
         );
 
