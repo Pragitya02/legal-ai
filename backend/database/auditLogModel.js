@@ -1,16 +1,55 @@
-const db = require("../db");
-
 /*
 =====================================================
-AUDIT LOG MODEL
+NYAYA AI - AUDIT LOG MODEL
 
 Centralized audit logging for security-sensitive
 document and account actions.
 
-This model intentionally fails safely:
-audit logging must never break the main user action.
+IMPORTANT:
+The database module is loaded lazily inside the
+functions below.
+
+This avoids a circular dependency during application
+startup where `db` could otherwise be an incomplete
+module.exports object.
+
+Audit logging intentionally fails safely:
+audit logging must NEVER break the main application
+operation.
 =====================================================
 */
+
+
+// =====================================================
+// GET DATABASE CONNECTION
+// =====================================================
+//
+// IMPORTANT:
+// Do NOT require ../db at the top of this file.
+//
+// Some parts of the backend load database models while
+// the database module is still being initialized.
+// Loading ../db lazily prevents:
+//     db.query is not a function
+//
+// from circular module initialization.
+// =====================================================
+
+function getDatabase() {
+
+    const database = require("../db");
+
+    if (
+        !database ||
+        typeof database.query !== "function"
+    ) {
+        throw new Error(
+            "Database connection is not initialized correctly."
+        );
+    }
+
+    return database;
+}
 
 
 // =====================================================
@@ -18,7 +57,11 @@ audit logging must never break the main user action.
 // =====================================================
 
 async function ensureAuditLogsTable() {
+
     try {
+
+        const db = getDatabase();
+
         await db.query(`
             CREATE TABLE IF NOT EXISTS audit_logs (
 
@@ -69,7 +112,9 @@ async function ensureAuditLogsTable() {
             )
         `);
 
-        console.log("AUDIT LOGS TABLE READY");
+        console.log(
+            "AUDIT LOGS TABLE READY"
+        );
 
     } catch (error) {
 
@@ -79,10 +124,12 @@ async function ensureAuditLogsTable() {
         );
 
         /*
+         * IMPORTANT:
+         *
          * Do not throw here.
          *
-         * Audit logging must not prevent the application
-         * from starting if the audit table cannot be created.
+         * Audit logging must never prevent the
+         * application from starting.
          */
     }
 }
@@ -93,16 +140,30 @@ async function ensureAuditLogsTable() {
 // =====================================================
 
 async function logDocumentActivity({
+
     documentId = null,
+
     userId = null,
+
     action,
+
     req = null,
+
     metadata = null
+
 }) {
 
     try {
 
-        if (!action) {
+        // -------------------------------------------------
+        // VALIDATE ACTION
+        // -------------------------------------------------
+
+        if (
+            typeof action !== "string" ||
+            !action.trim()
+        ) {
+
             console.error(
                 "AUDIT LOG SKIPPED: action is required."
             );
@@ -111,12 +172,19 @@ async function logDocumentActivity({
         }
 
 
-        /*
-         * Build a human-readable description from the
-         * action and available metadata.
-         */
+        // -------------------------------------------------
+        // GET DATABASE
+        // -------------------------------------------------
+
+        const db = getDatabase();
+
+
+        // -------------------------------------------------
+        // HUMAN-READABLE DESCRIPTIONS
+        // -------------------------------------------------
 
         const descriptions = {
+
             document_uploaded:
                 "Document uploaded",
 
@@ -129,30 +197,53 @@ async function logDocumentActivity({
             document_deleted:
                 "Document deleted",
 
+            document_renamed:
+                "Document renamed",
+
+            blockchain_registered:
+                "Document registered on blockchain",
+
             blockchain_verified:
                 "Blockchain verification performed",
 
             document_security_changed:
                 "Document security settings changed"
+
         };
 
+
+        const normalizedAction =
+            action.trim();
+
+
         const description =
-            descriptions[action] ||
-            action.replace(/_/g, " ");
+            descriptions[normalizedAction] ||
+            normalizedAction.replace(
+                /_/g,
+                " "
+            );
 
 
-        /*
-         * Safely obtain request information.
-         */
+        // -------------------------------------------------
+        // REQUEST INFORMATION
+        // -------------------------------------------------
 
         let ipAddress = null;
+
         let userAgent = null;
 
+
         if (req) {
+
+            /*
+             * Render / reverse proxy may provide the
+             * original client IP through x-forwarded-for.
+             */
 
             const forwardedFor =
                 req.headers &&
                 req.headers["x-forwarded-for"];
+
 
             if (forwardedFor) {
 
@@ -163,10 +254,17 @@ async function logDocumentActivity({
 
             } else if (req.ip) {
 
-                ipAddress = req.ip;
+                ipAddress =
+                    String(req.ip)
+                        .trim();
 
             }
 
+
+            /*
+             * User-Agent is limited to avoid storing
+             * unexpectedly large values.
+             */
 
             if (
                 req.headers &&
@@ -183,13 +281,77 @@ async function logDocumentActivity({
         }
 
 
-        /*
-         * MySQL JSON column accepts a JSON string.
-         *
-         * null remains SQL NULL.
-         */
+        // -------------------------------------------------
+        // VALIDATE / NORMALIZE USER ID
+        // -------------------------------------------------
+
+        let safeUserId = null;
+
+        if (
+            userId !== null &&
+            userId !== undefined &&
+            userId !== ""
+        ) {
+
+            const numericUserId =
+                Number(userId);
+
+            if (
+                Number.isInteger(
+                    numericUserId
+                ) &&
+                numericUserId > 0
+            ) {
+
+                safeUserId =
+                    numericUserId;
+
+            }
+
+        }
+
+
+        // -------------------------------------------------
+        // VALIDATE / NORMALIZE DOCUMENT ID
+        // -------------------------------------------------
+
+        let safeDocumentId = null;
+
+        if (
+            documentId !== null &&
+            documentId !== undefined &&
+            documentId !== ""
+        ) {
+
+            const numericDocumentId =
+                Number(documentId);
+
+            if (
+                Number.isInteger(
+                    numericDocumentId
+                ) &&
+                numericDocumentId > 0
+            ) {
+
+                safeDocumentId =
+                    numericDocumentId;
+
+            }
+
+        }
+
+
+        // -------------------------------------------------
+        // SERIALIZE METADATA
+        // -------------------------------------------------
+        //
+        // MySQL JSON columns can receive a JSON string.
+        //
+        // null remains SQL NULL.
+        // -------------------------------------------------
 
         let metadataValue = null;
+
 
         if (
             metadata !== null &&
@@ -199,9 +361,13 @@ async function logDocumentActivity({
             try {
 
                 metadataValue =
-                    JSON.stringify(metadata);
+                    JSON.stringify(
+                        metadata
+                    );
 
-            } catch (serializationError) {
+            } catch (
+                serializationError
+            ) {
 
                 console.error(
                     "AUDIT METADATA SERIALIZATION ERROR:",
@@ -209,51 +375,81 @@ async function logDocumentActivity({
                 );
 
                 metadataValue = null;
+
             }
+
         }
 
+
+        // -------------------------------------------------
+        // INSERT AUDIT RECORD
+        // -------------------------------------------------
 
         await db.query(
             `
             INSERT INTO audit_logs (
+
                 user_id,
+
                 entity_type,
+
                 entity_id,
+
                 action,
+
                 description,
+
                 ip_address,
+
                 user_agent,
+
                 metadata
+
             )
+
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `,
+
             [
-                userId || null,
+
+                safeUserId,
+
                 "document",
-                documentId || null,
-                action,
+
+                safeDocumentId,
+
+                normalizedAction,
+
                 description,
+
                 ipAddress,
+
                 userAgent,
+
                 metadataValue
+
             ]
         );
+
 
     } catch (error) {
 
         /*
-         * IMPORTANT:
+         * CRITICAL SAFETY RULE:
          *
-         * Audit logging must NEVER cause a document
-         * upload/view/download/delete/verification
-         * operation to fail.
+         * Audit logging must NEVER cause the original
+         * document operation to fail.
+         *
+         * Therefore we log the error and return.
          */
 
         console.error(
             "AUDIT LOG ERROR:",
             error.message
         );
+
     }
+
 }
 
 
@@ -262,6 +458,9 @@ async function logDocumentActivity({
 // =====================================================
 
 module.exports = {
+
     ensureAuditLogsTable,
+
     logDocumentActivity
+
 };

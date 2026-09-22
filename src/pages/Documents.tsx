@@ -292,10 +292,11 @@ export default function Documents() {
       }
 
       const response = await fetch(
-        `${API_BASE}/api/documents`,
+        `${API_BASE}/api/documents?_=${Date.now()}`,
         {
           method: "GET",
           credentials: "include",
+          cache: "no-store",
           headers: {
             "X-Document-Password":
               documentPassword,
@@ -306,6 +307,12 @@ export default function Documents() {
       const result = await response.json();
 
       console.log("SAVED DOCUMENTS:", result);
+      console.log(
+        "DOCUMENT COUNT:",
+        Array.isArray(result.documents)
+          ? result.documents.length
+          : 0
+      );
 
       if (!response.ok || !result.success) {
         console.error(
@@ -1071,46 +1078,13 @@ export default function Documents() {
         return;
       }
 
-      const uploadedFile: Doc = {
-        id: result.file?.id,
-
-        name:
-          result.file?.originalName ||
-          file.name,
-
-        size:
-          result.file?.size
-            ? formatFileSize(
-                result.file.size
-              )
-            : formatFileSize(
-                file.size
-              ),
-
-        date:
-          new Date().toLocaleDateString(
-            "en-IN",
-            {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            }
-          ),
-
-        type:
-          result.file?.mimetype ||
-          file.type ||
-          "Uploaded",
-
-        url:
-          result.file?.url ||
-          undefined,
-      };
-
-      setDocs((prev) => [
-        uploadedFile,
-        ...prev,
-      ]);
+      // Reload the authoritative list from the backend.
+      // This avoids constructing a partial local document
+      // object and guarantees the list contains every saved
+      // document plus the newly uploaded one.
+      await loadDocuments(
+        documentPassword
+      );
 
       showToast(
         `${file.name} uploaded successfully`
@@ -1226,11 +1200,10 @@ export default function Documents() {
         return;
       }
 
-      setDocs((prev) =>
-        prev.filter(
-          (doc) =>
-            doc.id !== id
-        )
+      // Reload from the backend so the UI always reflects
+      // the database after deletion.
+      await loadDocuments(
+        documentPassword || ""
       );
 
       showToast(
@@ -1338,11 +1311,9 @@ export default function Documents() {
               "X-Document-Password":
                 documentPassword || "",
             },
-
-            body: JSON.stringify({
-              fileName:
-                newName,
-            }),
+body: JSON.stringify({
+  file_name: newName,
+}),
           }
         );
 
@@ -1366,15 +1337,12 @@ export default function Documents() {
         return;
       }
 
-      setDocs((prev) =>
-        prev.map((doc) =>
-          doc.id === id
-            ? {
-                ...doc,
-                name: newName,
-              }
-            : doc
-        )
+      // Reload from the backend after rename instead of only
+      // changing React state. This keeps the UI synchronized
+      // with the database and also restores the complete
+      // document list if the page previously had stale state.
+      await loadDocuments(
+        documentPassword || ""
       );
 
       showToast(
