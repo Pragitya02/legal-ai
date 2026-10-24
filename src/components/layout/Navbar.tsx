@@ -58,7 +58,7 @@ export default function Navbar() {
   }
 
   return (
-<nav style={{
+<nav className="site-navbar" style={{
   position: 'sticky',
   top: 0,
   zIndex: 100,
