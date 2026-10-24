@@ -65,12 +65,11 @@ export default function Navbar() {
     top: 0,
     zIndex: 100,
     width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
-    background: 'rgba(255, 255, 255, 0.72)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
-    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12)',
+    background: 'rgba(255, 255, 255, 0.58)',
+    backdropFilter: 'blur(24px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.48)',
+    boxShadow: '0 8px 32px rgba(30, 20, 10, 0.10)',
   }}
 >
       <div

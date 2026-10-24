@@ -837,3 +837,24 @@ html body #root nav.site-navbar {
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
 }
+/* Premium frosted-glass navigation */
+html body #root nav.site-navbar {
+  background: rgba(255, 255, 255, 0.58) !important;
+  background-color: rgba(255, 255, 255, 0.58) !important;
+  backdrop-filter: blur(24px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.48) !important;
+  box-shadow: 0 8px 32px rgba(30, 20, 10, 0.10) !important;
+}
+
+/* Readable navigation links on the light glass surface */
+nav.site-navbar a,
+nav.site-navbar button {
+  color: #292522;
+}
+
+/* Preserve bronze branding and active navigation accents */
+nav.site-navbar a:hover,
+nav.site-navbar button:hover {
+  border-color: rgba(194, 118, 53, 0.45);
+}
