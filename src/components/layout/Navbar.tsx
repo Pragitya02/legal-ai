@@ -64,9 +64,11 @@ export default function Navbar() {
         top: 0,
         zIndex: 100,
         width: '100%',
-        background: '#000000',
-        borderBottom: '1px solid rgba(194, 118, 53, 0.25)',
-        boxShadow: '0 2px 20px rgba(0,0,0,0.45)',
+        background: 'rgba(255, 255, 255, 0.12)',
+backdropFilter: 'blur(20px)',
+WebkitBackdropFilter: 'blur(20px)',
+borderBottom: '1px solid rgba(255, 255, 255, 0.25)',
+boxShadow: '0 4px 30px rgba(0, 0, 0, 0.08)',
       }}
     >
       <div
