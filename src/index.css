@@ -822,3 +822,12 @@ hr {
   .gavel-cursor__impact { animation-duration: 1ms; }
   .gavel-cursor__spinner { animation-duration: 2s; }
 }
+/* Force the Alpine navigation bar to use frosted white glass */
+nav.site-navbar {
+  background: rgba(255, 255, 255, 0.72) !important;
+  background-color: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12) !important;
+}
