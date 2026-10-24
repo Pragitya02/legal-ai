@@ -1,0 +1,23 @@
+# Live profile photo capture
+
+## What it does
+- The camera icon on the Citizen and Advocate profile pages opens a live camera dialog (no gallery / file picker).
+- On-device face landmark detection (MediaPipe Face Landmarker) checks: exactly one face, centred and large enough, acceptable brightness / contrast / sharpness, then guides five poses (straight, left, right, up, down).
+- The sharpest straight-ahead frame is cropped to 640x640 JPEG, shown for confirmation, then uploaded.
+- The backend validates the JPEG (real JPEG structure, 4 KB - 2 MB, 256 - 2048 px, sane aspect ratio), stores it in the existing Supabase Storage bucket under `profile-photos/<userId>/<uuid>.jpg`, saves the reference in `users.profile_photo_path`, and returns the updated profile (`photoUrl`).
+- Photos are read back through `GET /api/profile/photo/:userId`:
+  advocate photos are public (they appear on Find Advocates); any other account's photo is only served to its owner.
+
+These checks improve photo quality. They do **not** verify identity and are **not** spoof-proof liveness detection.
+
+## Setup
+1. `npm install` in the project root (adds `@mediapipe/tasks-vision` 0.10.21; this also updates `package-lock.json`).
+2. Database: the backend adds `users.profile_photo_path` automatically on startup. If your DB user cannot ALTER, run `backend/migrations/2026-10-16-add-users-profile-photo-path.sql` once.
+3. Environment: no new variables. It reuses the existing `SUPABASE_URL`, `SUPABASE_SECRET_KEY` and `SUPABASE_STORAGE_BUCKET` (default `nyaya-documents`) already used for documents. The bucket can stay private.
+4. The browser downloads the face model (`storage.googleapis.com`) and the WASM runtime (`cdn.jsdelivr.net`) when the camera dialog opens. If you add a Content-Security-Policy to the frontend, allow those hosts (and `blob:` for images).
+5. Camera access needs HTTPS (or localhost).
+
+## API
+- `PUT /api/profile/photo` - multipart field `photo` (JPEG). Auth cookie + CSRF header required. Acts only on the logged-in user. Limited to 10 uploads / 15 min / user.
+- `GET /api/profile/photo/:userId` - image bytes (see access rules above).
+- `GET /api/profile`, `PUT /api/profile` and `GET /api/lawyers` now include the photo URL (`photoUrl` / `photo_url`).
