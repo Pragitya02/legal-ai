@@ -324,8 +324,8 @@ async function extractWithGeminiVision(
   */
 
   const modelsToTry = [
-    process.env.GEMINI_VISION_MODEL || "gemini-3-flash",
-    "gemini-3-flash",
+    process.env.GEMINI_VISION_MODEL || "gemini-2.5-flash",
+    "gemini-2.5-flash",
   ].filter(
     (value, index, array) =>
       value && array.indexOf(value) === index
@@ -484,7 +484,20 @@ async function recognizeImagesWithTesseract(imageBuffers, label = "image") {
   let worker;
   const language = String(process.env.OCR_LANGUAGE || "eng").trim() || "eng";
   try {
-    worker = await Tesseract.createWorker(language);
+    // Pin the worker script to the installed npm package instead of loading a
+    // potentially stale CDN worker. This prevents API/worker version mismatches
+    // on Render deployments.
+    let workerOptions = {};
+    try {
+      workerOptions = {
+        workerPath: require.resolve("tesseract.js/worker.min.js"),
+        corePath: require.resolve("tesseract.js-core"),
+        langPath: process.env.TESSERACT_LANG_PATH || "https://tessdata.projectnaptha.com/4.0.0",
+      };
+    } catch (resolveError) {
+      console.warn("TESSERACT LOCAL WORKER PATH RESOLUTION FAILED; using package defaults:", resolveError?.message || resolveError);
+    }
+    worker = await Tesseract.createWorker(language, 1, workerOptions);
     const sections = [];
     for (let i = 0; i < imageBuffers.length; i += 1) {
       const result = await worker.recognize(imageBuffers[i]);
@@ -562,10 +575,10 @@ async function extractPdfDocument(buffer) {
     const visualText = await extractWithGeminiVision(buffer, "application/pdf");
     if (visualText) return visualText;
   }
-  if (groq) {
-    const groqText = await extractImageWithGroq(buffer, "application/pdf");
-    if (groqText) return groqText;
-  }
+  // Do not send application/pdf to Groq's image_url field. That field expects
+  // a supported image data URL; PDF buffers are not valid image payloads.
+  // If local OCR and Gemini PDF understanding both fail, return the explicit
+  // extraction warning below rather than generating a misleading 400 error.
   if (textExtraction) return textExtraction;
 
   return `\n[NO READABLE TEXT FOUND]\n\nNo embedded PDF text or local OCR text could be extracted. If this is a scanned PDF, check the OCR dependencies and try a clearer scan. Do not assume information is absent from the original document.`;
