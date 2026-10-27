@@ -119,6 +119,11 @@ const advocateNav = [
     href: '/advocate',
   },
   {
+    icon: FolderOpen,
+    label: 'My Cases',
+    href: '/advocate/cases',
+  },
+  {
     icon: Calendar,
     label: 'Appointments',
     href: '/advocate/appointments',

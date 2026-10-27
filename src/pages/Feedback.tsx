@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ContinueAdvocateDialog, { type ContinueContext } from "../components/collab/ContinueAdvocateDialog";
+import { collabFetch } from "../lib/collabApi";
 import {
     AlertCircle,
     CheckCircle2,
@@ -61,6 +63,7 @@ export default function Feedback() {
     const [reportDetails, setReportDetails] = useState("");
 
     const [submitted, setSubmitted] = useState(false);
+    const [continueCtx, setContinueCtx] = useState<ContinueContext | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -186,6 +189,21 @@ export default function Feedback() {
             }
 
             setSubmitted(true);
+
+            // Popup only after a successful submit; once per appointment per session.
+            const shownKey = `nyaya_continue_prompt_${appointmentId}`;
+            if (form?.reviewerRole !== "advocate" && !sessionStorage.getItem(shownKey)) {
+                sessionStorage.setItem(shownKey, "1");
+                collabFetch<{ eligible: boolean; advocateId: number; advocateName: string; appointmentId: number }>(
+                    `/consultation/${Number(appointmentId)}/context`
+                )
+                    .then((c) => {
+                        if (c.eligible) {
+                            setContinueCtx({ advocateId: c.advocateId, advocateName: c.advocateName, appointmentId: c.appointmentId });
+                        }
+                    })
+                    .catch(() => {});
+            }
         } catch (err) {
             setError(
                 err instanceof Error
@@ -237,6 +255,9 @@ export default function Feedback() {
     Continue
 </button>
                 </div>
+                {continueCtx && (
+                    <ContinueAdvocateDialog ctx={continueCtx} onClose={() => setContinueCtx(null)} />
+                )}
             </div>
         );
     }

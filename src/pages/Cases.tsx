@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import CaseCollaborationsPanel from '../components/collab/CaseCollaborationsPanel'
 import { useNavigate } from 'react-router'
 import {
   Plus,
@@ -395,6 +396,8 @@ export default function Cases() {
         </div>
 
       </div>
+
+      <CaseCollaborationsPanel />
 
       {/* =====================================================
           SEARCH / FILTER

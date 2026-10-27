@@ -36,6 +36,8 @@ import Profile from '../pages/Profile'
 import Cases from '../pages/Cases'
 import NewCase from '../pages/NewCase'
 import CaseWorkspace from '../pages/CaseWorkspace'
+import CollaborationWorkspace from '../pages/CollaborationWorkspace'
+import AdvocateCases from '../pages/AdvocateCases'
 import Documents from '../pages/Documents'
 import Notifications from '../pages/Notifications'
 import Settings from '../pages/Settings'
@@ -155,6 +157,11 @@ export const router = createBrowserRouter([
       },
 
       {
+        path: 'collaborations/:id',
+        Component: CollaborationWorkspace,
+      },
+
+      {
         path: 'new-case',
         Component: NewCase,
       },
@@ -193,6 +200,16 @@ export const router = createBrowserRouter([
       {
         index: true,
         Component: AdvocateDashboard,
+      },
+
+      {
+        path: 'cases',
+        Component: AdvocateCases,
+      },
+
+      {
+        path: 'collaborations/:id',
+        Component: CollaborationWorkspace,
       },
 
       {

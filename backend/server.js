@@ -52,6 +52,7 @@ const {
 const { ensureRefreshTokenTable } = require("./database/refreshTokenModel");
 const { ensurePasswordResetTokenTable } = require("./database/passwordResetTokenModel");
 const { ensureActivityTable } = require("./database/activityModel");
+const { ensureCollaborationTables } = require("./database/collaborationModel");
 
 const {
     ensureDocumentHashColumn,
@@ -115,6 +116,12 @@ ensureBlockchainColumns().catch((err) => {
     );
 });
 
+ensureAuditLogsTable()
+    .then(() => ensureCollaborationTables())
+    .catch((err) => {
+        console.error("Failed to ensure collaboration tables:", err.message);
+    });
+
 ensureAuditLogsTable().catch((err) => {
     console.error(
         "Failed to ensure audit_logs table:",
@@ -140,6 +147,7 @@ const lawyerRoutes = require("./routes/lawyerRoutes");
 const voiceRoutes = require("./routes/voiceRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const caseRoutes = require("./routes/caseRoutes");
+const collaborationRoutes = require("./routes/collaborationRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const appointmentRoutes = require("./routes/appointmentRoutes");
@@ -411,6 +419,11 @@ app.use(
 app.use(
     "/api/cases",
     caseRoutes
+);
+
+app.use(
+    "/api/collab",
+    collaborationRoutes
 );
 
 // -----------------------------------------------------
