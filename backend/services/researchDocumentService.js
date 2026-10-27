@@ -74,6 +74,22 @@ function trimText(text) {
 
 /*
 |--------------------------------------------------------------------------
+| LOCAL PDF PAGE RENDERING
+|--------------------------------------------------------------------------
+|
+| pdf-img-convert renders scanned PDF pages into PNG buffers so Tesseract.js
+| can OCR them without a separately hosted OCR API. Rendering is capped by
+| OCR_MAX_PDF_PAGES to keep memory and processing time under control.
+*/
+let pdfToImages = null;
+try {
+  pdfToImages = require("pdf-img-convert");
+} catch (error) {
+  console.warn("PDF IMAGE CONVERTER NOT INSTALLED - scanned PDFs will use Gemini fallback.");
+}
+
+/*
+|--------------------------------------------------------------------------
 | PDF TEXT EXTRACTION
 |--------------------------------------------------------------------------
 |
@@ -455,88 +471,64 @@ assistant. It must therefore remain faithful to the uploaded document.
 
 /*
 |--------------------------------------------------------------------------
-| LOCAL TESSERACT OCR FALLBACK
+| TESSERACT OCR
 |--------------------------------------------------------------------------
 |
-| This path is deliberately used only after Gemini and Groq vision fail.
-| It is useful for photographed/scanned case documents where the image
-| contains readable text but no cloud vision model is configured.
-|
+| Local OCR extracts text without an OCR API charge. Gemini remains the
+| reasoning model used downstream by the research assistant. OCR is not
+| proof that names, numbers, or legal citations were read correctly.
 */
+async function recognizeImagesWithTesseract(imageBuffers, label = "image") {
+  if (!Tesseract || !Array.isArray(imageBuffers) || imageBuffers.length === 0) return "";
 
-async function extractImageWithTesseract(
-  buffer
-) {
-  if (!Tesseract) {
-    return "";
-  }
-
-  if (!buffer || !buffer.length) {
-    return "";
-  }
-
+  let worker;
+  const language = String(process.env.OCR_LANGUAGE || "eng").trim() || "eng";
   try {
-    console.log(
-      "LOCAL OCR: starting Tesseract OCR..."
-    );
-
-    const result =
-      await Tesseract.recognize(
-        buffer,
-        process.env.OCR_LANGUAGE || "eng",
-        {
-          logger: (info) => {
-            if (
-              info?.status === "recognizing text" &&
-              typeof info.progress === "number"
-            ) {
-              const percent =
-                Math.round(info.progress * 100);
-
-              if (percent % 20 === 0) {
-                console.log(
-                  `LOCAL OCR: ${percent}%`
-                );
-              }
-            }
-          },
-        }
-      );
-
-    const extracted =
-      trimText(
-        result?.data?.text || ""
-      );
-
-    if (extracted) {
-      console.log(
-        "LOCAL OCR: text extraction completed."
-      );
-
-      return `
-=== OCR EXTRACTED TEXT ===
-
-${extracted}
-
-=== OCR NOTE ===
-
-Text was extracted using local OCR. Visual legal elements such as
-signatures, stamps, seals, and document authenticity were not
-independently verified.
-`;
+    worker = await Tesseract.createWorker(language);
+    const sections = [];
+    for (let i = 0; i < imageBuffers.length; i += 1) {
+      const result = await worker.recognize(imageBuffers[i]);
+      const pageText = trimText(result?.data?.text || "");
+      if (pageText) sections.push(`--- ${label.toUpperCase()} ${i + 1} ---\n${pageText}`);
     }
-
-    console.warn(
-      "LOCAL OCR: no readable text found."
-    );
-
-    return "";
+    return trimText(sections.join("\n\n"));
   } catch (error) {
-    console.error(
-      "LOCAL TESSERACT OCR ERROR:",
-      error?.message || error
-    );
+    console.error("LOCAL TESSERACT OCR ERROR:", error?.message || error);
+    return "";
+  } finally {
+    if (worker) {
+      try { await worker.terminate(); } catch (_) {}
+    }
+  }
+}
 
+async function extractImageWithTesseract(buffer) {
+  if (!buffer || !buffer.length) return "";
+  const extracted = await recognizeImagesWithTesseract([buffer], "image page");
+  if (!extracted) return "";
+  console.log(`TESSERACT OCR: extracted ${extracted.length} characters from image.`);
+  return `=== TEXT EXTRACTED BY LOCAL TESSERACT OCR ===\n\n${extracted}\n\n=== OCR LIMITATION ===\nText extraction can contain errors. Check names, dates, case numbers, section numbers, and quotations against the original page. OCR does not verify signatures, seals, authenticity, or legal correctness.`;
+}
+
+async function extractPdfWithTesseract(buffer) {
+  if (!pdfToImages || !Tesseract || !buffer || !buffer.length) return "";
+  const configuredLimit = Number.parseInt(process.env.OCR_MAX_PDF_PAGES || "10", 10);
+  const maxPages = Math.min(25, Math.max(1, Number.isFinite(configuredLimit) ? configuredLimit : 10));
+  const scale = Math.min(2.5, Math.max(1, Number(process.env.OCR_PDF_SCALE) || 1.5));
+  try {
+    console.log(`TESSERACT OCR: rendering up to ${maxPages} scanned PDF pages...`);
+    const pageNumbers = Array.from({ length: maxPages }, (_, i) => i + 1);
+    const renderedPages = await pdfToImages.convert(buffer, {
+      page_numbers: pageNumbers,
+      scale,
+    });
+    if (!Array.isArray(renderedPages) || renderedPages.length === 0) return "";
+    const extracted = await recognizeImagesWithTesseract(renderedPages, "page");
+    if (!extracted) return "";
+    console.log(`TESSERACT OCR: extracted ${extracted.length} characters from ${renderedPages.length} PDF page(s).`);
+    return `=== TEXT EXTRACTED BY LOCAL TESSERACT OCR ===\n\n${extracted}\n\n=== OCR LIMITATION ===\nOCR may misread names, dates, case numbers, section numbers, or legal quotations. Verify them against the original PDF. ${renderedPages.length === maxPages ? `At most ${maxPages} page(s) were processed; if the PDF has more pages, later pages may not be included.` : ""} OCR does not verify signatures, seals, authenticity, or legal correctness.`;
+  } catch (error) {
+    console.error("SCANNED PDF TESSERACT OCR ERROR:", error?.message || error);
     return "";
   }
 }
@@ -546,125 +538,37 @@ independently verified.
 | PDF ANALYSIS
 |--------------------------------------------------------------------------
 |
-| First extract normal PDF text.
-|
-| Then send the original PDF to Gemini Vision when available so that
-| visual elements can also be inspected.
-|
+| Text-based PDFs use their embedded text (no OCR cost). Scanned PDFs use
+| local Tesseract OCR; Gemini is the downstream reasoning model. If local
+| OCR cannot run or returns no text, Gemini can inspect the original PDF.
 */
-
-async function extractPdfDocument(
-  buffer
-) {
+async function extractPdfDocument(buffer) {
   let textExtraction = "";
-
-  /*
-  |--------------------------------------------------------------------------
-  | STEP 1 — NORMAL PDF TEXT
-  |--------------------------------------------------------------------------
-  */
-
   try {
-    textExtraction =
-      await extractPdfText(buffer);
+    textExtraction = await extractPdfText(buffer);
   } catch (error) {
-    console.error(
-      "PDF TEXT EXTRACTION ERROR:",
-      error.message
-    );
+    console.error("PDF TEXT EXTRACTION ERROR:", error?.message || error);
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | STEP 2 — VISUAL PDF ANALYSIS
-  |--------------------------------------------------------------------------
-  |
-  | This allows scanned PDFs and visual elements to be analyzed when
-  | Gemini is configured.
-  |
-  */
+  if (textExtraction.length >= 180) {
+    return trimText(`=== TEXT EXTRACTED DIRECTLY FROM PDF ===\n\n${textExtraction}`);
+  }
 
-  let visualExtraction = "";
+  const tesseractText = await extractPdfWithTesseract(buffer);
+  if (tesseractText) return tesseractText;
 
+  // Fallback only when local OCR is unavailable or produces no readable text.
   if (gemini) {
-    visualExtraction =
-      await extractWithGeminiVision(
-        buffer,
-        "application/pdf"
-      );
+    const visualText = await extractWithGeminiVision(buffer, "application/pdf");
+    if (visualText) return visualText;
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | GROQ PDF VISION FALLBACK
-  |--------------------------------------------------------------------------
-  |
-  | Some Groq vision deployments may accept document/PDF input while
-  | others may not. We therefore attempt it only after Gemini and keep
-  | normal PDF text extraction as the primary path.
-  |
-  */
-
-  if (!visualExtraction && groq) {
-    try {
-      visualExtraction =
-        await extractImageWithGroq(
-          buffer,
-          "application/pdf"
-        );
-    } catch (error) {
-      console.error(
-        "GROQ PDF ANALYSIS ERROR:",
-        error?.message || error
-      );
-    }
+  if (groq) {
+    const groqText = await extractImageWithGroq(buffer, "application/pdf");
+    if (groqText) return groqText;
   }
+  if (textExtraction) return textExtraction;
 
-  /*
-  |--------------------------------------------------------------------------
-  | COMBINE RESULTS
-  |--------------------------------------------------------------------------
-  */
-
-  if (
-    textExtraction &&
-    visualExtraction
-  ) {
-    return trimText(`
---- TEXT EXTRACTION ---
-
-${textExtraction}
-
---- VISUAL DOCUMENT ANALYSIS ---
-
-${visualExtraction}
-`);
-  }
-
-  if (visualExtraction) {
-    return visualExtraction;
-  }
-
-  if (textExtraction) {
-    return textExtraction;
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | NOTHING READABLE
-  |--------------------------------------------------------------------------
-  */
-
-  return `
-[NO READABLE TEXT FOUND]
-
-No machine-readable text could be extracted from this PDF.
-
-The PDF may be a scanned/image-only document. A configured
-vision/OCR provider was either unavailable or could not analyze it.
-
-Do not assume that information is absent from the original document.
-`;
+  return `\n[NO READABLE TEXT FOUND]\n\nNo embedded PDF text or local OCR text could be extracted. If this is a scanned PDF, check the OCR dependencies and try a clearer scan. Do not assume information is absent from the original document.`;
 }
 
 /*
@@ -672,105 +576,23 @@ Do not assume that information is absent from the original document.
 | IMAGE ANALYSIS
 |--------------------------------------------------------------------------
 */
+async function extractImageDocument(buffer, mimeType) {
+  // Prefer local OCR to avoid spending Gemini vision tokens on simple text extraction.
+  const tesseractText = await extractImageWithTesseract(buffer);
+  if (tesseractText) return tesseractText;
 
-async function extractImageDocument(
-  buffer,
-  mimeType
-) {
-  /*
-  |--------------------------------------------------------------------------
-  | STEP 1 — GEMINI VISION
-  |--------------------------------------------------------------------------
-  */
-
+  // If OCR fails, use Gemini vision as a fallback; downstream Gemini reasoning
+  // still analyzes extracted text during the research workflow.
   if (gemini) {
-    const geminiText =
-      await extractWithGeminiVision(
-        buffer,
-        mimeType
-      );
-
-    if (geminiText) {
-      return geminiText;
-    }
+    const geminiText = await extractWithGeminiVision(buffer, mimeType);
+    if (geminiText) return geminiText;
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | STEP 2 — GROQ VISION
-  |--------------------------------------------------------------------------
-  */
-
   if (groq) {
-    const groqText =
-      await extractImageWithGroq(
-        buffer,
-        mimeType
-      );
-
-    if (groqText) {
-      return groqText;
-    }
+    const groqText = await extractImageWithGroq(buffer, mimeType);
+    if (groqText) return groqText;
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | STEP 3 — LOCAL OCR
-  |--------------------------------------------------------------------------
-  |
-  | This allows an image containing ordinary printed text to still be
-  | extracted even when the cloud vision services are unavailable.
-  |
-  */
-
-  const ocrText =
-    await extractImageWithTesseract(
-      buffer
-    );
-
-  if (ocrText) {
-    return ocrText;
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | NO EXTRACTION ENGINE AVAILABLE
-  |--------------------------------------------------------------------------
-  */
-
-  const configuredProviders = [];
-
-  if (gemini) {
-    configuredProviders.push("Gemini");
-  }
-
-  if (groq) {
-    configuredProviders.push("Groq");
-  }
-
-  if (Tesseract) {
-    configuredProviders.push("Tesseract OCR");
-  }
-
-  return `
-[IMAGE UPLOADED]
-
-The image was uploaded successfully, but OCR/text extraction could not
-be completed.
-
-Configured extraction providers:
-${
-  configuredProviders.length
-    ? configuredProviders.join(", ")
-    : "None"
-}
-
-The original document may still contain readable information.
-Do not assume that a field is absent merely because extraction failed.
-
-To enable image OCR on the server, configure GEMINI_API_KEY or
-GROQ_API_KEY. For a local OCR fallback, install tesseract.js.
-`;
+  return `\n[IMAGE UPLOADED]\n\nThe image was uploaded, but local OCR did not return readable text and no vision fallback succeeded. Try a clearer scan. Do not assume that information is absent from the original document.`;
 }
 
 /*
@@ -903,4 +725,5 @@ module.exports = {
   extractWithGeminiVision,
   extractImageWithGroq,
   extractImageWithTesseract,
+  extractPdfWithTesseract,
 };
