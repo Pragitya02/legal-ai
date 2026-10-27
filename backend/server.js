@@ -212,6 +212,7 @@ const allowedOrigins = [
     FRONTEND_URL,
     "https://nyayaai.online",
     "https://www.nyayaai.online",
+    "https://legal-b04ptbu76-tarun-1dea.vercel.app",
 ].filter(Boolean);
 
 // Localhost origins are only needed for local development

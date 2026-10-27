@@ -323,12 +323,17 @@ async function extractWithGeminiVision(
   |
   */
 
+  // Prefer the currently documented stable multimodal model, then fall back
+  // to other supported Flash models if the selected model is temporarily
+  // unavailable or not enabled for this API key. Keep this list small to limit
+  // extra API calls and avoid repeatedly trying retired model IDs.
   const modelsToTry = [
-    process.env.GEMINI_VISION_MODEL || "gemini-2.5-flash",
-    "gemini-2.5-flash",
+    process.env.GEMINI_VISION_MODEL,
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-3.5-flash-lite",
   ].filter(
-    (value, index, array) =>
-      value && array.indexOf(value) === index
+    (value, index, array) => value && array.indexOf(value) === index
   );
 
   const prompt = `
@@ -484,19 +489,13 @@ async function recognizeImagesWithTesseract(imageBuffers, label = "image") {
   let worker;
   const language = String(process.env.OCR_LANGUAGE || "eng").trim() || "eng";
   try {
-    // Pin the worker script to the installed npm package instead of loading a
-    // potentially stale CDN worker. This prevents API/worker version mismatches
-    // on Render deployments.
-    let workerOptions = {};
-    try {
-      workerOptions = {
-        workerPath: require.resolve("tesseract.js/worker.min.js"),
-        corePath: require.resolve("tesseract.js-core"),
-        langPath: process.env.TESSERACT_LANG_PATH || "https://tessdata.projectnaptha.com/4.0.0",
-      };
-    } catch (resolveError) {
-      console.warn("TESSERACT LOCAL WORKER PATH RESOLUTION FAILED; using package defaults:", resolveError?.message || resolveError);
-    }
+    // Let the installed tesseract.js package select its matching worker and
+    // core. Overriding workerPath/corePath independently can pair incompatible
+    // versions (the mismatch observed in Render logs). Only override the
+    // language-data location, which is independent of the worker/core version.
+    const workerOptions = {
+      langPath: process.env.TESSERACT_LANG_PATH || "https://tessdata.projectnaptha.com/4.0.0",
+    };
     worker = await Tesseract.createWorker(language, 1, workerOptions);
     const sections = [];
     for (let i = 0; i < imageBuffers.length; i += 1) {
