@@ -165,6 +165,7 @@ const agentRoutes = require("./routes/agentRoutes");
 
 const authMiddleware = require("./middleware/authMiddleware");
 const masterAgent = require("./agents/masterAgent");
+const { researchChatAgent } = require("./agents/researchChatAgent");
 const { createNotification } = require("./routes/notificationRoutes");
 
 // =====================================================
@@ -584,10 +585,56 @@ app.post(
                 "================================="
             );
 
-            const result = await masterAgent({
-                ...req.body,
-                userId: req.user.id,
-            });
+            // AI Assistant can reuse the existing AI Research agent when requested.
+            // This avoids maintaining a second legal-research implementation.
+            let result;
+            if (req.body?.useResearchAgent === true) {
+                const question = typeof req.body.case === "string"
+                    ? req.body.case.trim().slice(0, 20000)
+                    : "";
+                if (!question) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "A legal question is required.",
+                    });
+                }
+
+                const history = Array.isArray(req.body.history)
+                    ? req.body.history.slice(-6).map((item) => ({
+                        role: item?.role === "user" ? "user" : "assistant",
+                        content: typeof item?.content === "string"
+                            ? item.content.slice(0, 1200)
+                            : "",
+                    })).filter((item) => item.content.trim())
+                    : [];
+
+                const researchResult = await researchChatAgent({
+                    message: question,
+                    history,
+                    documents: [],
+                    researchMode: req.body.researchMode === "deep" ? "deep" : "standard",
+                });
+
+                if (typeof researchResult === "string") {
+                    result = { success: true, response: researchResult, citations: [], webSources: [] };
+                } else {
+                    result = {
+                        success: true,
+                        response: typeof researchResult?.answer === "string"
+                            ? researchResult.answer
+                            : "I could not generate a research response.",
+                        citations: Array.isArray(researchResult?.citations) ? researchResult.citations : [],
+                        webSources: Array.isArray(researchResult?.webSources) ? researchResult.webSources : [],
+                        sourcesVerified: researchResult?.sourcesVerified === true,
+                        sourceNotices: Array.isArray(researchResult?.sourceNotices) ? researchResult.sourceNotices : [],
+                    };
+                }
+            } else {
+                result = await masterAgent({
+                    ...req.body,
+                    userId: req.user.id,
+                });
+            }
 
             // =================================================
             // CREATE AI RESPONSE NOTIFICATION

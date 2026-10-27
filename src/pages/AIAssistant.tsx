@@ -410,6 +410,14 @@ try {
     },
     body: JSON.stringify({
       case: text,
+      useResearchAgent: true,
+      researchMode: "standard",
+      history: messages
+        .slice(-6)
+        .map(message => ({
+          role: message.role === "user" ? "user" : "assistant",
+          content: message.content.slice(0, 1200),
+        })),
     }),
   })
 
@@ -2283,6 +2291,49 @@ border: '1px solid var(--border)'
                 </div>
 
               )}
+
+            {/* Deterministic follow-ups: no extra AI/API request to create suggestions. */}
+            {msg.role === 'ai' && index > 0 && !loading && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: '12px 14px',
+                  border: '1px solid var(--border)',
+                  borderRadius: 10,
+                  background: 'var(--bg-secondary)',
+                }}
+              >
+                <div style={{ fontWeight: 700, fontSize: '0.82rem', marginBottom: 9 }}>
+                  What do you need next?
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  {[
+                    'Find relevant Indian judgments',
+                    'Show applicable legal provisions',
+                    'Explain this in simpler language',
+                    'Find supporting legal precedents',
+                    'Analyze the legal arguments',
+                    'Explain the next steps',
+                  ].map(suggestion => (
+                    <button
+                      key={suggestion}
+                      onClick={() => sendMessage(suggestion + ' about my previous question.')}
+                      style={{
+                        padding: '7px 10px',
+                        borderRadius: 8,
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-glass)',
+                        color: 'var(--text)',
+                        fontSize: '0.76rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
           </div>
 
