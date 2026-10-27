@@ -3,6 +3,9 @@ import { Link } from 'react-router'
 import { isLoggedIn } from '../lib/auth'
 import jsPDF from 'jspdf'
 import AnimatedMarkdown from '../components/AnimatedMarkdown'
+import SourceStatus from '../components/SourceStatus'
+import { parseCitationMeta } from '../lib/citations'
+import type { CitationMeta } from '../lib/citations'
 import NyayaAIMonogram from '../components/NyayaAIMonogram'
 import {
 Send, Mic, Square, Paperclip, RotateCcw, Scale, FileText, Users,
@@ -14,6 +17,8 @@ id: string
 role: 'user' | 'ai'
 content: string
 timestamp: string
+// Citation metadata supplied by the backend for freshly generated answers.
+sources?: CitationMeta
 metadata?: {
 caseType?: string
 laws?: string[]
@@ -323,6 +328,9 @@ return data
 const sendMessage = async (text: string) => {
 if (!text.trim()) return
 
+// Prevent duplicate paid requests from a double click / double Enter.
+if (loading) return
+
 if (!isLoggedIn()) {
   alert("Please login again.")
   return
@@ -424,6 +432,7 @@ try {
     id: Date.now().toString() + "-ai",
     role: "ai",
     content: aiResponse,
+    sources: parseCitationMeta(data),
     timestamp: new Date().toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -738,7 +747,12 @@ const safeReportText = String(reportText ?? '')
 const paragraphs = safeReportText.split(/\r?\n/)
 
 for (const rawParagraph of paragraphs) {
-  const line = rawParagraph.trim()
+  // Citations arrive as markdown links; print them as plain text in the PDF.
+  const line = rawParagraph
+    .trim()
+    .replace(/\[\\?\[(\d{1,2})\\?\]\]\([^)\s]+\)/g, '[$1]')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1: $2')
+    .replace(/\\([\[\]])/g, '$1')
 
   if (!line) {
     y += 3
@@ -1683,6 +1697,10 @@ border: '1px solid var(--border)'
                 )}
 
               </div>
+
+              {msg.role === 'ai' && (
+                <SourceStatus meta={msg.sources} />
+              )}
 
               <div
                 style={{

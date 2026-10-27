@@ -5,6 +5,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const { extractDocument } = require("../services/researchDocumentService");
 const { researchChatAgent } = require("../agents/researchChatAgent");
 const { tinyFishSearch } = require("../services/tinyfishService");
+const { sanitizeUrl } = require("../services/citationService");
 
 const {
   createResearchConversation,
@@ -518,6 +519,8 @@ ${extractedText}
 
       let documentMessage = "";
       let documentWebSources = [];
+      let documentCitations = [];
+      let documentSourcesVerified = false;
 
       try {
         const documentResearchResult =
@@ -562,6 +565,18 @@ ${extractedText}
           )
             ? documentResearchResult.webSources
             : [];
+
+        documentCitations =
+          typeof documentResearchResult === "object" &&
+          Array.isArray(
+            documentResearchResult?.citations
+          )
+            ? documentResearchResult.citations
+            : [];
+
+        documentSourcesVerified =
+          typeof documentResearchResult === "object" &&
+          documentResearchResult?.sourcesVerified === true;
       } catch (aiError) {
         console.error(
           "RESEARCH DOCUMENT AI ERROR:",
@@ -611,6 +626,8 @@ ${extractedText}
         message: finalDocumentMessage,
 
         webSources: documentWebSources,
+        citations: documentCitations,
+        sourcesVerified: documentSourcesVerified,
       });
     } catch (error) {
       console.error(
@@ -743,6 +760,9 @@ router.post(
 
       let answer = "";
       let webSources = [];
+      let citations = [];
+      let sourcesVerified = false;
+      let sourceNotices = [];
 
       try {
         const researchResult =
@@ -799,6 +819,24 @@ router.post(
             )
               ? researchResult.webSources
               : [];
+
+          citations =
+            Array.isArray(
+              researchResult.citations
+            )
+              ? researchResult.citations
+              : [];
+
+          sourcesVerified =
+            researchResult.sourcesVerified ===
+            true;
+
+          sourceNotices =
+            Array.isArray(
+              researchResult.sourceNotices
+            )
+              ? researchResult.sourceNotices
+              : [];
         }
       } catch (aiError) {
         console.error(
@@ -844,10 +882,9 @@ router.post(
                     : "Untitled source",
 
                 url:
-                  typeof source.url ===
-                  "string"
-                    ? source.url
-                    : "",
+                  sanitizeUrl(
+                    source.url
+                  ) || "",
 
                 site_name:
                   typeof source.site_name ===
@@ -931,6 +968,12 @@ router.post(
         */
 
         webSources: normalizedWebSources,
+
+        // Statute + web citations built by the backend from retrieval
+        // metadata. The same links are already embedded in `message`.
+        citations,
+        sourcesVerified,
+        sourceNotices,
       });
     } catch (error) {
       console.error(

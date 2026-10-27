@@ -35,6 +35,9 @@ import NyayaAIResearchMonogram from '../components/NyayaAIResearchMonogram'
 
 
 import AnimatedMarkdown from '../components/AnimatedMarkdown'
+import SourceStatus from '../components/SourceStatus'
+import { parseCitationMeta, safeHref } from '../lib/citations'
+import type { CitationMeta } from '../lib/citations'
 
 
 
@@ -52,6 +55,8 @@ interface ResearchMessage {
   content: string
   created_at?: string
   webSources?: ResearchSource[]
+  // Citation metadata supplied by the backend for freshly generated answers.
+  sources?: CitationMeta
 }
 
 
@@ -873,6 +878,7 @@ export default function AIResearch() {
           role: 'ai',
 
           content: data.message,
+          sources: parseCitationMeta(data),
           webSources:
             Array.isArray(data.webSources)
               ? data.webSources
@@ -1129,6 +1135,7 @@ export default function AIResearch() {
           role: 'ai',
 
           content: data.message,
+          sources: parseCitationMeta(data),
           webSources:
             Array.isArray(data.webSources)
               ? data.webSources
@@ -3081,6 +3088,10 @@ export default function AIResearch() {
                     )}
                   </div>
 
+                  {msg.role === 'ai' && (
+                    <SourceStatus meta={msg.sources} />
+                  )}
+
                   {msg.role === 'ai' &&
                     Array.isArray(msg.webSources) &&
                     msg.webSources.length > 0 && (
@@ -3115,9 +3126,11 @@ export default function AIResearch() {
                             (source, index) => (
                               <a
                                 key={`${source.url}-${index}`}
-                                href={source.url}
+                                href={
+                                  safeHref(source.url) ?? undefined
+                                }
                                 target="_blank"
-                                rel="noopener noreferrer"
+                                rel="noopener noreferrer nofollow"
                                 style={{
                                   display: 'block',
                                   textDecoration: 'none',

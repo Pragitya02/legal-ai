@@ -4,6 +4,12 @@ const lawResearchAgent = require("./lawResearchAgent");
 const lawyerRecommendationAgent = require("./lawyerRecommendationAgent");
 const reportGeneratorAgent = require("./reportGeneratorAgent");
 
+const {
+    CITATION_PROMPT_RULES,
+    buildCitationIndex,
+    finalizeAnswer
+} = require("../services/citationService");
+
 console.log("MASTER AGENT USING GROQ");
 
 async function masterAgent(data) {
@@ -28,7 +34,14 @@ async function masterAgent(data) {
 
         console.log("Running Law Research Agent...");
 
-        const lawResearch = await lawResearchAgent(data.case);
+        // Reuses the single retrieval + single AI call of the law research
+        // step; the citations come from that same retrieval result.
+        const lawResearchResult =
+            await lawResearchAgent.lawResearchWithSources(data.case);
+
+        const lawResearch = lawResearchResult.text;
+
+        const statuteCitations = lawResearchResult.citations || [];
 
         // ==============================
         // STEP 3 - LAWYER RECOMMENDATION
@@ -99,9 +112,9 @@ ${lawyerRecommendation?.specialization || "General Lawyer"}
 
 ================================
 
-GENERATED REPORT
+CITATION INDEX
 
-${report}
+${buildCitationIndex(statuteCitations)}
 
 ================================
 
@@ -121,7 +134,7 @@ Use:
 - Constitution of India
 - Relevant Acts whenever applicable.
 
-Your response must include:
+Your response must include these sections, each with a markdown "##" heading:
 
 1. Case Summary
 2. Relevant Indian Legal Sections
@@ -130,6 +143,22 @@ Your response must include:
 5. Next Steps
 6. Documents Required
 7. Whether consulting a lawyer is recommended
+
+FORMATTING:
+
+- Use "##" headings, short paragraphs and "-" bullet lists.
+- Use a markdown table only when comparing several items.
+- In "Relevant Indian Legal Sections", for each provision give:
+  the full name of the Act, the exact section number, and a one-line
+  explanation of why it is relevant.
+- Keep statutory text (what the source says) separate from your own
+  explanation.
+
+${CITATION_PROMPT_RULES}
+
+This assistant has no judgment database. Do not cite specific judgments as
+verified authority. If a well-known principle needs a case, say it is from
+general legal knowledge and has not been verified from retrieved sources.
 
 IMPORTANT:
 
@@ -164,6 +193,21 @@ IMPORTANT:
                     : answer?.message
                         ? String(answer.message)
                         : "I could not generate a legal response.";
+        // ==============================
+        // ATTACH VERIFIED CITATIONS
+        // ==============================
+        // Deterministic post-processing: no extra AI or network call.
+
+        const finalized = finalizeAnswer(
+            finalAnswer,
+            statuteCitations,
+            {
+                removeUnapprovedLinks: true,
+                listUncitedStatutes: true,
+                appendSources: true
+            }
+        );
+
         // AI analysis does NOT create a case.
         // Cases are created explicitly by the user through
         // POST /api/cases (New Case page).
@@ -174,10 +218,13 @@ IMPORTANT:
 
         return {
             success: true,
-            response: finalAnswer,
+            response: finalized.text || finalAnswer,
             specialization:
                 lawyerRecommendation?.specialization ||
-                "General Lawyer"
+                "General Lawyer",
+            citations: finalized.citations,
+            sourcesVerified: finalized.sourcesVerified,
+            sourceNotices: finalized.notices
         };
 
     } catch (err) {

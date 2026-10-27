@@ -6,6 +6,12 @@ const {
     detectAct
 } = require("../services/legalRetrievalService");
 
+const {
+    CITATION_PROMPT_RULES,
+    buildStatuteCitations,
+    buildCitationIndex
+} = require("../services/citationService");
+
 
 // ============================================================
 // LEGAL CONTEXT FORMATTER
@@ -16,13 +22,24 @@ function formatRetrievedLaws(
     {
         maxSources = 5,
         maxContentCharsPerSource = 3000,
-        maxTotalChars = 14000
+        maxTotalChars = 14000,
+        citations = []
     } = {}
 ) {
 
     if (!laws || laws.length === 0) {
-        return "No relevant provisions were found in the legal knowledge base.";
+        return {
+            text: "No relevant provisions were found in the legal knowledge base.",
+            includedCitations: []
+        };
     }
+
+    // Citation IDs are keyed by the position of the row in `laws`.
+    const citationByLawIndex = new Map(
+        citations.map((c) => [c.lawIndex, c])
+    );
+
+    const includedCitations = [];
 
     const selectedLaws = laws.slice(0, maxSources);
 
@@ -32,6 +49,13 @@ function formatRetrievedLaws(
     for (let index = 0; index < selectedLaws.length; index++) {
 
         const law = selectedLaws[index];
+
+        const citation = citationByLawIndex.get(index);
+
+        // Duplicate provisions were de-duplicated when citations were built.
+        if (citations.length > 0 && !citation) {
+            continue;
+        }
 
         let content = law.content || "";
 
@@ -52,7 +76,7 @@ function formatRetrievedLaws(
         // ----------------------------------------------------
 
         const sourceHeader = `
-SOURCE ${index + 1}
+SOURCE ${index + 1}${citation ? `   (CITATION ID: [${citation.id}])` : ""}
 
 Act:
 ${law.act_name || "Not available"}
@@ -110,6 +134,10 @@ ${law.effective_date || "Not available"}
 
         formattedSources.push(formattedSource);
 
+        if (citation) {
+            includedCitations.push(citation);
+        }
+
         totalChars += formattedSource.length;
 
 
@@ -119,9 +147,12 @@ ${law.effective_date || "Not available"}
     }
 
 
-    return formattedSources.join(
-        "\n-----------------------------\n"
-    );
+    return {
+        text: formattedSources.join(
+            "\n-----------------------------\n"
+        ),
+        includedCitations
+    };
 }
 
 
@@ -129,7 +160,7 @@ ${law.effective_date || "Not available"}
 // LAW RESEARCH AGENT
 // ============================================================
 
-async function lawResearchAgent(caseDescription) {
+async function lawResearchWithSources(caseDescription) {
 
     try {
 
@@ -220,12 +251,14 @@ async function lawResearchAgent(caseDescription) {
             laws.length === 0
         ) {
 
-            return (
-                `The requested provision could not be found in the ` +
-                `legal knowledge base: ${explicitAct.actName}, ` +
-                `Section ${explicitSection}. ` +
-                `No substitute provision from another Act will be used.`
-            );
+            return {
+                text:
+                    `The requested provision could not be found in the ` +
+                    `legal knowledge base: ${explicitAct.actName}, ` +
+                    `Section ${explicitSection}. ` +
+                    `No substitute provision from another Act will be used.`,
+                citations: []
+            };
         }
 
 
@@ -255,15 +288,27 @@ async function lawResearchAgent(caseDescription) {
          * model's input limit.
          */
 
-        const legalContext =
+        // Citations are built from the SAME retrieval result that is sent
+        // to the model. No extra search or AI call is made.
+        const candidateCitations =
+            buildStatuteCitations(laws.slice(0, 5), { max: 5 });
+
+        const formatted =
             formatRetrievedLaws(
                 laws,
                 {
                     maxSources: 5,
                     maxContentCharsPerSource: 3000,
-                    maxTotalChars: 14000
+                    maxTotalChars: 14000,
+                    citations: candidateCitations
                 }
             );
+
+        const legalContext = formatted.text;
+
+        const includedCitations = formatted.includedCitations;
+
+        const citationIndex = buildCitationIndex(includedCitations);
 
 
         console.log(
@@ -338,6 +383,12 @@ RETRIEVED LEGAL SOURCES:
 ${legalContext}
 
 
+CITATION INDEX:
+
+${citationIndex}
+
+${CITATION_PROMPT_RULES}
+
 RETURN:
 
 1. Applicable Indian laws
@@ -360,7 +411,10 @@ Do not provide unsupported legal conclusions.
             await askAI(prompt);
 
 
-        return result;
+        return {
+            text: result,
+            citations: includedCitations
+        };
 
 
     } catch (err) {
@@ -393,17 +447,38 @@ Do not provide unsupported legal conclusions.
                 "LAW RESEARCH AGENT: Model context/token limit reached."
             );
 
-            return (
-                "The legal research request retrieved too much material " +
-                "for the AI model to process in one request. Please try " +
-                "a more specific legal question or provide an Act and " +
-                "section number."
-            );
+            return {
+                text:
+                    "The legal research request retrieved too much material " +
+                    "for the AI model to process in one request. Please try " +
+                    "a more specific legal question or provide an Act and " +
+                    "section number.",
+                citations: []
+            };
         }
 
 
-        return "Unable to research applicable laws.";
+        return {
+            text: "Unable to research applicable laws.",
+            citations: []
+        };
     }
+}
+
+
+// ============================================================
+// BACKWARD-COMPATIBLE STRING API
+// ============================================================
+
+/*
+ * Existing callers expect a plain string. This wrapper keeps that contract.
+ */
+async function lawResearchAgent(caseDescription) {
+
+    const result =
+        await lawResearchWithSources(caseDescription);
+
+    return result.text;
 }
 
 
@@ -412,3 +487,5 @@ Do not provide unsupported legal conclusions.
 // ============================================================
 
 module.exports = lawResearchAgent;
+
+module.exports.lawResearchWithSources = lawResearchWithSources;

@@ -10,6 +10,14 @@ const {
   webResearchAgent,
 } = require("./webResearchAgent");
 
+const {
+  CITATION_PROMPT_RULES,
+  buildStatuteCitations,
+  buildWebCitations,
+  buildCitationIndex,
+  finalizeAnswer,
+} = require("../services/citationService");
+
 /*
 |--------------------------------------------------------------------------
 | NYAYA AI — ADVOCATE RESEARCH CHAT AGENT
@@ -480,16 +488,25 @@ function shouldUseWebResearch(
 |--------------------------------------------------------------------------
 */
 
-function formatLegalSources(laws) {
+function formatLegalSources(laws, citations = []) {
   if (
     !Array.isArray(laws) ||
     laws.length === 0
   ) {
-    return (
-      "No legal provisions were retrieved from the " +
-      "legal knowledge base."
-    );
+    return {
+      text:
+        "No legal provisions were retrieved from the " +
+        "legal knowledge base.",
+      includedCitations: [],
+    };
   }
+
+  // Citation IDs are keyed by the row's position in `laws`.
+  const citationByLawIndex = new Map(
+    citations.map((c) => [c.lawIndex, c])
+  );
+
+  const includedCitations = [];
 
   const MAX_SOURCES = 4;
   const MAX_CONTENT_CHARS_PER_SOURCE = 3000;
@@ -507,6 +524,13 @@ function formatLegalSources(laws) {
     index++
   ) {
     const law = laws[index];
+
+    const citation = citationByLawIndex.get(index);
+
+    // Duplicate provisions were removed when citations were built.
+    if (citations.length > 0 && !citation) {
+      continue;
+    }
 
     let content =
       typeof law?.content === "string"
@@ -526,7 +550,11 @@ function formatLegalSources(laws) {
     }
 
     const source = `
-LEGAL SOURCE ${index + 1}
+LEGAL SOURCE ${index + 1}${
+      citation
+        ? `   (CITATION ID: [${citation.id}])`
+        : ""
+    }
 
 Act:
 
@@ -575,21 +603,31 @@ ${law?.retrieval_type ||
     }
 
     formattedSources.push(source);
+
+    if (citation) {
+      includedCitations.push(citation);
+    }
+
     totalChars += source.length;
   }
 
   if (
     formattedSources.length === 0
   ) {
-    return (
-      "No legal provisions could be included within " +
-      "the legal context budget."
-    );
+    return {
+      text:
+        "No legal provisions could be included within " +
+        "the legal context budget.",
+      includedCitations: [],
+    };
   }
 
-  return formattedSources.join(
-    "\n----------------------------------------\n"
-  );
+  return {
+    text: formattedSources.join(
+      "\n----------------------------------------\n"
+    ),
+    includedCitations,
+  };
 }
 
 /*
@@ -598,103 +636,38 @@ ${law?.retrieval_type ||
 |--------------------------------------------------------------------------
 */
 
-function formatWebResearch(webResearch) {
-  if (!webResearch) {
+/*
+ * Formats the ALREADY-NORMALISED web citations (see normalizeWebSources and
+ * buildWebCitations). The model therefore sees exactly the sources the user
+ * will see, each tagged with its citation ID.
+ */
+function formatWebResearch(webCitations) {
+  if (!Array.isArray(webCitations)) {
     return "No live web research was performed.";
   }
 
-  const rawResults =
-    webResearch?.results;
-
-  let results = [];
-
-  if (Array.isArray(rawResults)) {
-    results = rawResults;
-  } else if (
-    rawResults &&
-    typeof rawResults === "object"
-  ) {
-    if (
-      Array.isArray(
-        rawResults.results
-      )
-    ) {
-      results =
-        rawResults.results;
-    } else if (
-      Array.isArray(
-        rawResults.data
-      )
-    ) {
-      results =
-        rawResults.data;
-    } else if (
-      Array.isArray(
-        rawResults.items
-      )
-    ) {
-      results =
-        rawResults.items;
-    }
-  }
-
-  if (results.length === 0) {
+  if (webCitations.length === 0) {
     return (
       "No relevant live web sources were retrieved."
     );
   }
 
-  return results
-    .slice(0, 6)
-    .map((result, index) => {
-      const title = cleanText(
-        result?.title ||
-          result?.name ||
-          "",
-        500
-      );
-
-      const snippet = cleanText(
-        result?.snippet ||
-          result?.description ||
-          "",
-        1200
-      );
-
-      const url = cleanText(
-        result?.url ||
-          result?.link ||
-          "",
-        1000
-      );
-
-      const source = cleanText(
-        result?.site_name ||
-          result?.source ||
-          "",
-        300
-      );
-
-      return `
-LIVE WEB SOURCE ${index + 1}
+  return webCitations
+    .map((citation) => `
+LIVE WEB SOURCE ${citation.id.slice(1)}   (CITATION ID: [${citation.id}])
 
 Title:
 
-${title || "Not available"}
+${citation.title || "Not available"}
 
 Source:
 
-${source || "Not available"}
-
-URL:
-
-${url || "Not available"}
+${citation.sourceName || "Not available"}
 
 Snippet:
 
-${snippet || "No snippet available"}
-`;
-    })
+${citation.snippet || "No snippet available"}
+`)
     .join(
       "\n----------------------------------------\n"
     );
@@ -722,15 +695,33 @@ ${snippet || "No snippet available"}
 |--------------------------------------------------------------------------
 */
 
-function normalizeWebSources(webResearch) {
-  const rawResults =
-    webResearch?.results?.results;
+// Maximum number of web results shown to the model AND to the user.
+const MAX_WEB_SOURCES = 6;
 
-  if (!Array.isArray(rawResults)) {
-    return [];
+/*
+ * TinyFish returns webResearch.results.results[]. Older/alternative shapes
+ * are tolerated so a provider change cannot silently drop all sources.
+ */
+function extractRawWebResults(webResearch) {
+  const raw = webResearch?.results;
+
+  if (Array.isArray(raw)) {
+    return raw;
   }
 
-  return rawResults
+  if (raw && typeof raw === "object") {
+    for (const key of ["results", "data", "items"]) {
+      if (Array.isArray(raw[key])) {
+        return raw[key];
+      }
+    }
+  }
+
+  return [];
+}
+
+function normalizeWebSources(webResearch) {
+  return extractRawWebResults(webResearch)
     .map((result) => ({
       title: cleanText(
         result?.title ||
@@ -770,7 +761,7 @@ function normalizeWebSources(webResearch) {
     .filter(
       (source) => source.url
     )
-    .slice(0, 10);
+    .slice(0, MAX_WEB_SOURCES);
 }
 
 /*
@@ -837,6 +828,9 @@ async function researchChatAgent({
   */
 
   let legalLaws = [];
+
+  // Citations for the statute rows that were actually sent to the model.
+  let statuteCitations = [];
 
   let legalContext =
     "Legal retrieval was not required for this question.";
@@ -941,10 +935,24 @@ State that the provision could not be verified from
 the available legal corpus.
 `;
     } else {
-      legalContext =
-        formatLegalSources(
-          legalLaws
+      // Built from the SAME retrieval result: no extra search or AI call.
+      const candidateCitations =
+        buildStatuteCitations(
+          legalLaws.slice(0, 4),
+          { max: 4 }
         );
+
+      const formattedLegal =
+        formatLegalSources(
+          legalLaws,
+          candidateCitations
+        );
+
+      legalContext =
+        formattedLegal.text;
+
+      statuteCitations =
+        formattedLegal.includedCitations;
     }
   }
 
@@ -957,6 +965,8 @@ the available legal corpus.
   let webResearch = null;
 
   let webSources = [];
+
+  let webCitations = [];
 
   let webResearchContext =
     "Live web research was not performed for this question.";
@@ -979,20 +989,42 @@ the available legal corpus.
           query: userMessage,
         });
 
-      webResearchContext =
-        formatWebResearch(
-          webResearch
-        );
-
       /*
       |--------------------------------------------------------------------------
       | STEP 8 — NORMALIZED EVIDENCE
       |--------------------------------------------------------------------------
+      |
+      | One normalised, URL-validated list is used for BOTH the prompt and
+      | the sources shown to the user, so they always match.
+      |
       */
 
+      webCitations =
+        buildWebCitations(
+          normalizeWebSources(
+            webResearch
+          ),
+          { max: MAX_WEB_SOURCES }
+        );
+
       webSources =
-        normalizeWebSources(
-          webResearch
+        webCitations.map(
+          (citation, index) => ({
+            id: citation.id,
+            title: citation.title,
+            url: citation.url,
+            site_name:
+              citation.sourceName,
+            snippet:
+              citation.snippet || "",
+            position: index + 1,
+            tier: citation.tier,
+          })
+        );
+
+      webResearchContext =
+        formatWebResearch(
+          webCitations
         );
 
       console.log(
@@ -1010,6 +1042,7 @@ the available legal corpus.
 
       webResearch = null;
       webSources = [];
+      webCitations = [];
 
       /*
       |--------------------------------------------------------------------------
@@ -1028,6 +1061,12 @@ the available legal corpus.
   | STEP 6 — MAIN ADVOCATE RESEARCH PROMPT
   |--------------------------------------------------------------------------
   */
+
+  const citationIndex =
+    buildCitationIndex([
+      ...statuteCitations,
+      ...webCitations,
+    ]);
 
   const prompt = `
 You are NYAYA AI — an advocate-facing Legal Research and Case Document Assistant.
@@ -1334,6 +1373,18 @@ LIVE WEB RESEARCH:
 ${webResearchContext}
 
 ==================================================
+CITATION INDEX
+==================================================
+
+${citationIndex}
+
+${CITATION_PROMPT_RULES}
+
+If the advocate's own uploaded document states a fact, attribute it to the
+document ("According to the uploaded order...") and do not attach a citation
+tag to it. Citation tags are only for retrieved legal sources.
+
+==================================================
 FOLLOW-UP QUESTIONS
 ==================================================
 
@@ -1358,15 +1409,38 @@ Do NOT require the advocate to repeat the entire question.
 ANSWER STYLE
 ==================================================
 
-Respond naturally like ChatGPT.
+Respond naturally and professionally.
 
 Do not unnecessarily repeat the entire question.
 
-Use headings, bullets, tables, or numbered lists when useful.
+For simple or factual questions (for example "What is the FIR number?"),
+answer briefly in plain prose. Do not force headings onto short answers.
 
-For simple questions, answer simply.
+For substantive legal research questions, organise the answer with markdown
+"##" headings, using ONLY the sections that are relevant (never add an empty
+or irrelevant section):
 
-For complex legal research, provide a structured explanation.
+## Research Question
+## Summary of Findings
+## Applicable Indian Laws
+## Relevant Sections and Legal Provisions
+## Relevant Judgments and Case Law
+## Legal Analysis
+## Limitations or Conflicting Interpretations
+
+Do NOT write a "Sources and References" section: the system appends it.
+
+Formatting rules:
+
+- Short paragraphs; "-" bullet lists for parallel points.
+- Use a markdown table only to compare several items side by side, with a
+  header row and concise cells.
+- Under "Relevant Sections and Legal Provisions", for each provision state:
+  the Act, the exact section/article, and its relevance, with the citation
+  tag directly after the claim.
+- Keep what a source says (statutory text, or what a retrieved source states)
+  clearly separate from your own explanation, for example by labelling
+  paragraphs "What the source says" and "Analysis".
 
 Be useful to an advocate.
 
@@ -1508,6 +1582,44 @@ If the question is a legitimate legal question but no document is uploaded, answ
 
     /*
     |--------------------------------------------------------------------------
+    | ATTACH CITATIONS (deterministic, no extra AI or network call)
+    |--------------------------------------------------------------------------
+    |
+    | - [L1]/[W1] tags become real links from retrieval metadata
+    | - unknown tags are dropped
+    | - links the model wrote itself are removed (unless the advocate's own
+    |   uploaded document is in play, where URLs may be legitimate quotes)
+    | - a Sources & References section is appended
+    | - an honest notice is added when authorities are cited without sources
+    |
+    */
+
+    if (answer === OUT_OF_SCOPE_RESPONSE) {
+      return answer;
+    }
+
+    const finalized =
+      finalizeAnswer(
+        answer,
+        [
+          ...statuteCitations,
+          ...webCitations,
+        ],
+        {
+          removeUnapprovedLinks:
+            !documentAvailable,
+          listUncitedStatutes: true,
+          appendSources: true,
+          // A pure document-fact answer (no legal retrieval) should not be
+          // flagged just because it repeats a section number from the file.
+          noticeWhenUnsourced:
+            !documentAvailable ||
+            useLegalRAG,
+        }
+      );
+
+    /*
+    |--------------------------------------------------------------------------
     | STEP 8 — RETURN ANSWER + WEB EVIDENCE
     |--------------------------------------------------------------------------
     |
@@ -1528,8 +1640,13 @@ If the question is a legitimate legal question but no document is uploaded, answ
     */
 
     return {
-      answer,
+      answer: finalized.text || answer,
       webSources,
+      citations: finalized.citations,
+      sourcesVerified:
+        finalized.sourcesVerified,
+      sourceNotices:
+        finalized.notices,
     };
   } catch (error) {
     console.error(
