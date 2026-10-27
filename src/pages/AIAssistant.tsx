@@ -1673,7 +1673,10 @@ border: '1px solid var(--border)'
                   : 'chat-bubble-user'
               }
               style={{
-                padding: '12px 16px'
+                padding: '12px 16px',
+                background: msg.role === 'user' ? '#000000' : undefined,
+                color: msg.role === 'user' ? '#ffffff' : undefined,
+                border: msg.role === 'user' ? '1px solid #27272a' : undefined,
               }}
             >
 
