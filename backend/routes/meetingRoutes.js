@@ -59,11 +59,23 @@ router.get("/", authMiddleware, async (req, res) => {
             INNER JOIN users citizen ON citizen.id = a.citizen_id
             INNER JOIN users advocate ON advocate.id = a.lawyer_id
             WHERE (a.citizen_id = ? OR a.lawyer_id = ?)
-              AND a.status = 'confirmed'
+              AND a.status IN (${req.query.includeCompleted === "1" ? "'confirmed','completed'" : "'confirmed'"})
             ORDER BY m.scheduled_start ASC
             `,
             [userId, userId]
         );
+
+        // Which of these appointments has the current user already reviewed?
+        const reviewed = new Set();
+        if (rows.length) {
+            try {
+                const [fb] = await db.query(
+                    `SELECT appointment_id FROM meeting_feedback WHERE reviewer_id = ? AND appointment_id IN (?)`,
+                    [userId, rows.map((r) => r.appointment_id)]
+                );
+                fb.forEach((f) => reviewed.add(Number(f.appointment_id)));
+            } catch (_) { /* table may not exist yet: nothing reviewed */ }
+        }
 
         const meetings = rows.map((meeting) => {
             const joinState = getJoinState(meeting.scheduled_start, meeting.scheduled_end);
@@ -71,6 +83,7 @@ router.get("/", authMiddleware, async (req, res) => {
                 ...meeting,
                 role: Number(meeting.citizen_id) === Number(userId) ? "citizen" : "advocate",
                 ...joinState,
+                feedback_submitted: reviewed.has(Number(meeting.appointment_id)),
                 joinUrl: `/meeting/${meeting.appointment_id}`
             };
         });

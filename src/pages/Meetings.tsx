@@ -25,6 +25,9 @@ interface Meeting {
   lawyer_name?: string;
   mode?: string;
   status?: string;
+  appointment_status?: string;
+  role?: string;
+  feedback_submitted?: boolean;
 }
 
 function formatDate(dateString: string) {
@@ -93,7 +96,7 @@ export default function Meetings() {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/meetings`, {
+      const response = await fetch(`${API_BASE_URL}/api/meetings?includeCompleted=1`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
@@ -250,10 +253,15 @@ export default function Meetings() {
         {!loading && !error && meetings.length > 0 && (
           <div className="space-y-5">
             {meetings.map((meeting) => {
-              const meetingState = getMeetingState(
-                meeting.scheduled_start,
-                meeting.scheduled_end
-              );
+              const isCompleted =
+                String(meeting.appointment_status || '').toLowerCase() === 'completed';
+              const meetingState = isCompleted
+                ? { type: 'ended', label: 'Meeting ended' }
+                : getMeetingState(meeting.scheduled_start, meeting.scheduled_end);
+              const canGiveFeedback =
+                isCompleted &&
+                meeting.role !== 'advocate' &&
+                !meeting.feedback_submitted;
 
               const advocateName =
                 meeting.advocate_name ||
@@ -511,7 +519,23 @@ export default function Meetings() {
                         </button>
                       )}
 
-                      {meetingState.type === 'ended' && (
+                      {meetingState.type === 'ended' && canGiveFeedback && (
+                        <button
+                          onClick={() => {
+                            window.location.href = `/feedback?appointmentId=${encodeURIComponent(meeting.appointment_id)}`;
+                          }}
+                          className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all"
+                          style={{
+                            background: 'linear-gradient(135deg, #e3a15f, #c27635)',
+                            color: '#000',
+                            boxShadow: '0 0 25px rgba(194,118,53,0.18)',
+                          }}
+                        >
+                          Give Feedback
+                        </button>
+                      )}
+
+                      {meetingState.type === 'ended' && !canGiveFeedback && (
                         <button
                           disabled
                           className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold opacity-40 cursor-not-allowed"

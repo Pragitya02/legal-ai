@@ -57,8 +57,8 @@ router.get("/consultation/:appointmentId/context", authMiddleware, wrap(async (r
     const apptId = posInt(req.params.appointmentId);
     if (!apptId) return fail(res, 400, "Invalid appointment.");
     const [rows] = await db.query(
-        `SELECT a.id, a.advocate_id, u.full_name AS advocate_name
-         FROM appointments a JOIN users u ON u.id = a.advocate_id
+        `SELECT a.id, a.lawyer_id AS advocate_id, u.full_name AS advocate_name
+         FROM appointments a JOIN users u ON u.id = a.lawyer_id
          WHERE a.id = ? AND a.citizen_id = ? LIMIT 1`, [apptId, uid(req)]);
     if (!rows[0]) return res.json({ success: true, eligible: false });
     const [fb] = await db.query(
@@ -123,7 +123,7 @@ router.post("/cases/:caseId/share", authMiddleware, wrap(async (req, res) => {
         if (!own[0]) { await conn.rollback(); return fail(res, 404, "Case not found."); }
         const [adv] = await conn.query(`SELECT id FROM users WHERE id = ? AND role = 'lawyer'`, [advocateId]);
         const [appt] = await conn.query(
-            `SELECT id FROM appointments WHERE citizen_id = ? AND advocate_id = ? ORDER BY id DESC LIMIT 1`,
+            `SELECT id FROM appointments WHERE citizen_id = ? AND lawyer_id = ? ORDER BY id DESC LIMIT 1`,
             [uid(req), advocateId]);
         if (!adv[0] || !appt[0]) {
             await conn.rollback();

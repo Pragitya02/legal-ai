@@ -1,6 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import ContinueAdvocateDialog, { type ContinueContext } from "../components/collab/ContinueAdvocateDialog";
-import { collabFetch } from "../lib/collabApi";
 import {
     AlertCircle,
     CheckCircle2,
@@ -63,7 +61,7 @@ export default function Feedback() {
     const [reportDetails, setReportDetails] = useState("");
 
     const [submitted, setSubmitted] = useState(false);
-    const [continueCtx, setContinueCtx] = useState<ContinueContext | null>(null);
+    const [showContinueWithAdvocate, setShowContinueWithAdvocate] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -97,6 +95,8 @@ export default function Feedback() {
 
                 if (data.alreadySubmitted) {
                     setSubmitted(true);
+            // Only citizens are offered the advocate-continuation workflow.
+            setShowContinueWithAdvocate(form.reviewerRole === "citizen");
                     return;
                 }
 
@@ -189,21 +189,8 @@ export default function Feedback() {
             }
 
             setSubmitted(true);
-
-            // Popup only after a successful submit; once per appointment per session.
-            const shownKey = `nyaya_continue_prompt_${appointmentId}`;
-            if (form?.reviewerRole !== "advocate" && !sessionStorage.getItem(shownKey)) {
-                sessionStorage.setItem(shownKey, "1");
-                collabFetch<{ eligible: boolean; advocateId: number; advocateName: string; appointmentId: number }>(
-                    `/consultation/${Number(appointmentId)}/context`
-                )
-                    .then((c) => {
-                        if (c.eligible) {
-                            setContinueCtx({ advocateId: c.advocateId, advocateName: c.advocateName, appointmentId: c.appointmentId });
-                        }
-                    })
-                    .catch(() => {});
-            }
+            // Only citizens are offered the advocate-continuation workflow.
+            setShowContinueWithAdvocate(form.reviewerRole === "citizen");
         } catch (err) {
             setError(
                 err instanceof Error
@@ -227,37 +214,71 @@ export default function Feedback() {
     }
 
     if (submitted) {
+        const goToMeetings = () => {
+            window.location.href = form?.reviewerRole === "advocate"
+                ? "/advocate/meetings"
+                : "/dashboard/meetings";
+        };
+
+        const continueWithAdvocate = () => {
+            if (!form || !appointmentId) {
+                window.location.href = "/dashboard/cases";
+                return;
+            }
+            const params = new URLSearchParams({
+                continueWithAdvocateId: String(form.revieweeId),
+                appointmentId: String(appointmentId),
+                advocateName: form.revieweeName || "",
+            });
+            window.location.href = `/dashboard/cases?${params.toString()}`;
+        };
+
         return (
             <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
                 <div className="w-full max-w-lg rounded-2xl border border-green-500/20 bg-gray-950 p-8 text-center shadow-2xl">
                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
                         <CheckCircle2 className="h-9 w-9 text-green-400" />
                     </div>
-
-                    <h1 className="mt-6 text-2xl font-bold">
-                        Thank you for your feedback
-                    </h1>
-
+                    <h1 className="mt-6 text-2xl font-bold">Thank you for your feedback</h1>
                     <p className="mt-3 text-gray-400">
                         Your consultation feedback has been submitted successfully.
                     </p>
-<button
-    type="button"
-    onClick={() => {
-        if (form?.reviewerRole === "advocate") {
-            window.location.href = "/advocate/meetings";
-        } else {
-            window.location.href = "/dashboard/meetings";
-        }
-    }}
-    className="mt-7 rounded-xl bg-[#C27635] px-6 py-3 font-semibold text-black hover:bg-[#E3A15F]"
->
-    Continue
-</button>
+
+                    {showContinueWithAdvocate && form?.reviewerRole === "citizen" ? (
+                        <div className="mt-7 rounded-2xl border border-[#C27635]/30 bg-[#C27635]/5 p-5 text-left">
+                            <h2 className="text-lg font-semibold text-white">
+                                Would you like to continue with this advocate?
+                            </h2>
+                            <p className="mt-2 text-sm leading-6 text-gray-400">
+                                You can continue organizing your legal matter in My Cases. Nothing will be created unless you choose to do so.
+                            </p>
+                            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                                <button
+                                    type="button"
+                                    onClick={continueWithAdvocate}
+                                    className="flex-1 rounded-xl bg-[#C27635] px-5 py-3 font-semibold text-black transition hover:bg-[#E3A15F]"
+                                >
+                                    Yes, Continue
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={goToMeetings}
+                                    className="flex-1 rounded-xl border border-white/15 px-5 py-3 font-semibold text-gray-200 transition hover:bg-white/5"
+                                >
+                                    No, Maybe Later
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={goToMeetings}
+                            className="mt-7 rounded-xl bg-[#C27635] px-6 py-3 font-semibold text-black hover:bg-[#E3A15F]"
+                        >
+                            Continue
+                        </button>
+                    )}
                 </div>
-                {continueCtx && (
-                    <ContinueAdvocateDialog ctx={continueCtx} onClose={() => setContinueCtx(null)} />
-                )}
             </div>
         );
     }
