@@ -100,7 +100,7 @@ function formatHistory(history) {
   }
 
   return history
-    .slice(-6)
+    .slice(-3)
     .map((item) => {
       const role = normalizeRole(
         item?.role ||
@@ -113,7 +113,7 @@ function formatHistory(history) {
           item?.message ||
           item?.text ||
           "",
-        1200
+        500
       );
 
       if (!content) {
@@ -143,9 +143,10 @@ function formatDocuments(documents) {
     return "No document has been uploaded in this research session.";
   }
 
-  const MAX_DOCUMENTS = 3;
-  const MAX_TEXT_PER_DOCUMENT = 6000;
-  const MAX_TOTAL_DOCUMENT_CHARS = 9000;
+  // Keep uploaded-document context modest so Groq TPM limits are not exceeded.
+  const MAX_DOCUMENTS = 2;
+  const MAX_TEXT_PER_DOCUMENT = 1800;
+  const MAX_TOTAL_DOCUMENT_CHARS = 3500;
 
   let totalChars = 0;
   const formattedDocuments = [];
@@ -508,9 +509,10 @@ function formatLegalSources(laws, citations = []) {
 
   const includedCitations = [];
 
-  const MAX_SOURCES = 4;
-  const MAX_CONTENT_CHARS_PER_SOURCE = 3000;
-  const MAX_TOTAL_LEGAL_CHARS = 8000;
+  // Compact legal RAG context; the prompt contains substantial fixed instructions.
+  const MAX_SOURCES = 3;
+  const MAX_CONTENT_CHARS_PER_SOURCE = 1000;
+  const MAX_TOTAL_LEGAL_CHARS = 2600;
 
   let totalChars = 0;
   const formattedSources = [];
@@ -696,7 +698,7 @@ ${citation.snippet || "No snippet available"}
 */
 
 // Maximum number of web results shown to the model AND to the user.
-const MAX_WEB_SOURCES = 6;
+const MAX_WEB_SOURCES = 3;
 
 /*
  * TinyFish returns webResearch.results.results[]. Older/alternative shapes
@@ -748,7 +750,7 @@ function normalizeWebSources(webResearch) {
         result?.snippet ||
           result?.description ||
           "",
-        1200
+        500
       ),
 
       position:
@@ -785,7 +787,7 @@ async function researchChatAgent({
   const userMessage =
     cleanText(
       message,
-      12000
+      3000
     );
 
   if (!userMessage) {
