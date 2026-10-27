@@ -96,7 +96,7 @@ export default function Feedback() {
                 if (data.alreadySubmitted) {
                     setSubmitted(true);
             // Only citizens are offered the advocate-continuation workflow.
-            setShowContinueWithAdvocate(form.reviewerRole === "citizen");
+            setShowContinueWithAdvocate(form?.reviewerRole === "citizen");
                     return;
                 }
 
