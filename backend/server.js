@@ -6,6 +6,9 @@ process.env.TZ = "Asia/Kolkata";
 require("dotenv").config();
 
 const express = require("express");
+const multer = require("multer");
+const { extractDocument } = require("./services/researchDocumentService");
+const analyzeUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -561,6 +564,7 @@ console.log(
 app.post(
     "/analyze",
     authMiddleware,
+    analyzeUpload.single("document"),
     async (req, res) => {
 
         try {
@@ -588,7 +592,7 @@ app.post(
             // AI Assistant can reuse the existing AI Research agent when requested.
             // This avoids maintaining a second legal-research implementation.
             let result;
-            if (req.body?.useResearchAgent === true) {
+            if (req.body?.useResearchAgent === true || req.body?.useResearchAgent === "true") {
                 const question = typeof req.body.case === "string"
                     ? req.body.case.trim().slice(0, 20000)
                     : "";
@@ -599,8 +603,12 @@ app.post(
                     });
                 }
 
-                const history = Array.isArray(req.body.history)
-                    ? req.body.history.slice(-6).map((item) => ({
+                let submittedHistory = req.body.history;
+                if (typeof submittedHistory === "string") {
+                    try { submittedHistory = JSON.parse(submittedHistory); } catch { submittedHistory = []; }
+                }
+                const history = Array.isArray(submittedHistory)
+                    ? submittedHistory.slice(-6).map((item) => ({
                         role: item?.role === "user" ? "user" : "assistant",
                         content: typeof item?.content === "string"
                             ? item.content.slice(0, 1200)
@@ -608,10 +616,27 @@ app.post(
                     })).filter((item) => item.content.trim())
                     : [];
 
+                let documents = [];
+                if (req.file) {
+                    const extractedText = await extractDocument(
+                        req.file.buffer,
+                        req.file.originalname,
+                        req.file.mimetype
+                    );
+                    if (!String(extractedText || "").trim()) {
+                        return res.status(422).json({ success: false, message: "No readable text was found in this document. Try a clearer scan or a text-based PDF." });
+                    }
+                    documents = [{
+                        file_name: req.file.originalname,
+                        file_type: req.file.mimetype,
+                        extracted_text: String(extractedText).slice(0, 9000),
+                    }];
+                }
+
                 const researchResult = await researchChatAgent({
                     message: question,
                     history,
-                    documents: [],
+                    documents,
                     researchMode: req.body.researchMode === "deep" ? "deep" : "standard",
                 });
 

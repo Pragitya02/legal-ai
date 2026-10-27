@@ -96,6 +96,7 @@ const [chatHistory, setChatHistory] = useState<
 > ([])
 
 const [fileUploaded, setFileUploaded] = useState<string | null>(null)
+const [selectedFile, setSelectedFile] = useState<File | null>(null)
 const [isRecording, setIsRecording] = useState(false)
 const [transcribing, setTranscribing] = useState(false)
 const [speakingId, setSpeakingId] = useState<string | null>(null)
@@ -261,6 +262,7 @@ const handleDeleteChat = async (
       ])
       setInput("")
       setFileUploaded(null)
+      setSelectedFile(null)
       setAgentStep("")
       setLoading(false)
     }
@@ -326,7 +328,8 @@ return data
 
 }
 const sendMessage = async (text: string) => {
-if (!text.trim()) return
+const messageText = text.trim() || (selectedFile ? `Please analyze the uploaded document: ${selectedFile.name}` : '')
+if (!messageText) return
 
 // Prevent duplicate paid requests from a double click / double Enter.
 if (loading) return
@@ -339,7 +342,7 @@ if (!isLoggedIn()) {
 const userMsg: Message = {
   id: Date.now().toString(),
   role: "user",
-  content: text,
+  content: messageText,
   timestamp: new Date().toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -377,7 +380,7 @@ try {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          title: text.trim().slice(0, 60) || "New Chat",
+          title: messageText.slice(0, 60) || "New Chat",
         }),
       }
     )
@@ -398,27 +401,24 @@ try {
     await saveMessage(
       currentConversationId,
       "user",
-      text
+      messageText
     )
   }
+
+  const requestBody = new FormData()
+  requestBody.append("case", messageText)
+  requestBody.append("useResearchAgent", "true")
+  requestBody.append("researchMode", "standard")
+  requestBody.append("history", JSON.stringify(messages.slice(-6).map(message => ({
+    role: message.role === "user" ? "user" : "assistant",
+    content: message.content.slice(0, 1200),
+  }))))
+  if (selectedFile) requestBody.append("document", selectedFile)
 
   const res = await fetch(`${API_BASE_URL}/analyze`, {
     method: "POST",
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      case: text,
-      useResearchAgent: true,
-      researchMode: "standard",
-      history: messages
-        .slice(-6)
-        .map(message => ({
-          role: message.role === "user" ? "user" : "assistant",
-          content: message.content.slice(0, 1200),
-        })),
-    }),
+    body: requestBody,
   })
 
   const data = await res.json()
@@ -449,6 +449,9 @@ try {
 
   setMessages(prev => [...prev, aiMsg])
   setStreamingMessageId(aiMsg.id)
+  setFileUploaded(null)
+  setSelectedFile(null)
+  if (fileRef.current) fileRef.current.value = ""
 
   if (currentConversationId !== null) {
     await saveMessage(
@@ -2538,9 +2541,11 @@ border: '1px solid var(--border)'
           {fileUploaded}
 
           <button
-            onClick={() =>
+            onClick={() => {
               setFileUploaded(null)
-            }
+              setSelectedFile(null)
+              if (fileRef.current) fileRef.current.value = ""
+            }}
             style={{
               background:
                 'none',
@@ -2648,12 +2653,18 @@ border: '1px solid var(--border)'
             style={{
               display: 'none'
             }}
-            onChange={e =>
-              e.target.files?.[0] &&
-              setFileUploaded(
-                e.target.files[0].name
-              )
-            }
+            accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp"
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              if (file.size > 10 * 1024 * 1024) {
+                alert("Please choose a file smaller than 10 MB.")
+                e.target.value = ""
+                return
+              }
+              setSelectedFile(file)
+              setFileUploaded(file.name)
+            }}
           />
 
           <button
