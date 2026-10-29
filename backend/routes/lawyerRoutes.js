@@ -5,6 +5,32 @@ const { buildProfilePhotoUrl } = require("../utils/profilePhoto");
 
 const router = express.Router();
 
+// The consultation fee lives in lawyers.consultation_fee (see
+// migrations/2026-10-29-add-lawyers-consultation-fee.sql). The column is
+// detected once so /api/lawyers keeps working before the migration is run.
+let feeColumnExists = null;
+
+async function hasFeeColumn() {
+  if (feeColumnExists !== null) return feeColumnExists;
+
+  try {
+    const [rows] = await db.query(`
+      SELECT 1
+      FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'lawyers'
+        AND COLUMN_NAME = 'consultation_fee'
+      LIMIT 1
+    `);
+    feeColumnExists = rows.length > 0;
+  } catch (err) {
+    console.error("FEE COLUMN CHECK ERROR:", err);
+    return false;
+  }
+
+  return feeColumnExists;
+}
+
 // =====================================================
 // GET ALL REGISTERED ADVOCATES
 // GET /api/lawyers
@@ -14,6 +40,10 @@ const router = express.Router();
 // =====================================================
 router.get("/", async (req, res) => {
   try {
+    const feeSelect = (await hasFeeColumn())
+      ? "l.consultation_fee AS fee,"
+      : "0 AS fee,";
+
     const [rows] = await db.query(`
       SELECT
         u.id,
@@ -24,6 +54,7 @@ router.get("/", async (req, res) => {
         u.created_at,
         u.profile_photo_path,
 
+        ${feeSelect}
         l.specialization,
         l.experience,
         l.location,

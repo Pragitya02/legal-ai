@@ -21,6 +21,19 @@ const API_URL =
   'http://localhost:5001'
 
 // =====================================================
+// CONSULTATION FEE RANGES (used by the Fee filter)
+// min is inclusive, max is exclusive. max = null means no upper limit.
+// =====================================================
+
+const FEE_RANGES = [
+  { label: 'Any', min: 0, max: null },
+  { label: 'Under ₹500', min: 1, max: 500 },
+  { label: '₹500 – ₹1,000', min: 500, max: 1000 },
+  { label: '₹1,000 – ₹2,000', min: 1000, max: 2000 },
+  { label: '₹2,000+', min: 2000, max: null },
+] as const
+
+// =====================================================
 // ADVOCATE AVATAR
 // Shows the advocate's saved profile photo (returned by
 // /api/lawyers in the same response) and falls back to the
@@ -101,6 +114,9 @@ export default function AdvocateListing() {
 
   const [minRating, setMinRating] =
     useState(0)
+
+  const [feeRange, setFeeRange] =
+    useState<string>('Any')
 
   const [showFilters, setShowFilters] =
     useState(false)
@@ -289,8 +305,8 @@ export default function AdvocateListing() {
                         'Hindi',
                       ],
 
-                // Kept for the existing card UI.
-                // Fee is NOT used as a filter.
+                // Consultation fee (INR). 0 = not listed.
+                // Used by the card UI and the Fee filter.
                 fee:
                   Number(
                     lawyer.fee || 0
@@ -430,12 +446,27 @@ export default function AdvocateListing() {
       (availability === 'Available Now' && a.available) ||
       (availability === 'Busy' && !a.available)
 
+    const selectedFee =
+      FEE_RANGES.find(r => r.label === feeRange) ??
+      FEE_RANGES[0]
+
+    const advocateFee = Number(a.fee || 0)
+
+    // Advocates with no listed fee only show under "Any".
+    const matchesFee =
+      selectedFee.label === 'Any' ||
+      (advocateFee > 0 &&
+        advocateFee >= selectedFee.min &&
+        (selectedFee.max === null ||
+          advocateFee < selectedFee.max))
+
     return (
       matchesSearch &&
       matchesDistrict &&
       matchesPracticeArea &&
       matchesRating &&
-      matchesAvailability
+      matchesAvailability &&
+      matchesFee
     )
   })
 
@@ -459,6 +490,8 @@ export default function AdvocateListing() {
     setMinRating(0)
 
     setAvailability('All')
+
+    setFeeRange('Any')
   }
 
   const hasActiveFilters =
@@ -468,7 +501,8 @@ export default function AdvocateListing() {
       'All Practice Areas' ||
     minRating > 0 ||
     availability !==
-      'All'
+      'All' ||
+    feeRange !== 'Any'
 
   // =====================================================
   // RENDER
@@ -799,6 +833,59 @@ export default function AdvocateListing() {
                     }}
                   >
                     {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* CONSULTATION FEE */}
+
+            <div>
+              <label
+                style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  color: 'var(--text-muted)',
+                  display: 'block',
+                  marginBottom: 6,
+                }}
+              >
+                Consultation Fee
+              </label>
+
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 6,
+                  flexWrap: 'wrap',
+                }}
+              >
+                {FEE_RANGES.map(range => (
+                  <button
+                    type="button"
+                    key={range.label}
+                    onClick={() =>
+                      setFeeRange(range.label)
+                    }
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: 7,
+                      fontSize: '0.78rem',
+                      fontWeight: 500,
+                      border:
+                        '1px solid var(--border)',
+                      cursor: 'pointer',
+                      background:
+                        feeRange === range.label
+                          ? 'var(--blue-subtle)'
+                          : 'var(--bg-secondary)',
+                      color:
+                        feeRange === range.label
+                          ? 'var(--blue)'
+                          : 'var(--text-muted)',
+                    }}
+                  >
+                    {range.label}
                   </button>
                 ))}
               </div>
