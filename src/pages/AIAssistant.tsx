@@ -5,6 +5,7 @@ import jsPDF from 'jspdf'
 import AnimatedMarkdown from '../components/AnimatedMarkdown'
 import SourceStatus from '../components/SourceStatus'
 import { parseCitationMeta } from '../lib/citations'
+import { getRecommendedPracticeAreas } from '../lib/practiceAreaRecommendations'
 import type { CitationMeta } from '../lib/citations'
 import NyayaAIMonogram from '../components/NyayaAIMonogram'
 import {
@@ -1711,6 +1712,46 @@ border: '1px solid var(--border)'
                 )}
 
               </div>
+
+              {msg.role === 'ai' &&
+                index > 0 &&
+                msg.id !== streamingMessageId &&
+                (() => {
+                  const areas = getRecommendedPracticeAreas(
+                    String(messages[index - 1]?.content ?? ''),
+                    String(msg.content ?? '')
+                  )
+                  if (!areas.length) return null
+                  return (
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#C27635' }}>
+                        Recommended Practice Areas
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #a1a1aa)', margin: '2px 0 8px' }}>
+                        Find advocates specializing in these legal areas.
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {areas.map(area => (
+                          <Link
+                            key={area}
+                            to={`/advocates?practiceArea=${encodeURIComponent(area)}`}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 999,
+                              border: '1px solid #C27635',
+                              background: 'rgba(194,118,53,0.1)',
+                              color: '#C27635',
+                              fontSize: '0.75rem',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            {area}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
 
               {msg.role === 'ai' && (
                 <SourceStatus meta={msg.sources} />

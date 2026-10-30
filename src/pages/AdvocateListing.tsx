@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import {
   Search,
   Star,
@@ -103,8 +103,16 @@ export default function AdvocateListing() {
   const [district, setDistrict] =
     useState('All Districts')
 
+  const [searchParams] = useSearchParams()
+  const initialPracticeArea = searchParams.get('practiceArea')
+
   const [practiceArea, setPracticeArea] =
-    useState('All Practice Areas')
+    useState(
+      initialPracticeArea &&
+        (practiceAreas as readonly string[]).includes(initialPracticeArea)
+        ? initialPracticeArea
+        : 'All Practice Areas'
+    )
 
   const [districtSearch, setDistrictSearch] =
     useState('')
