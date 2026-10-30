@@ -1,468 +1,228 @@
-# Nyaya AI
+<div align="center">
 
-> AI-powered legal assistance and secure legal document management platform.
+# ⚖️ Nyaya AI
 
-Nyaya AI is a full-stack legal-tech platform designed to help citizens access legal information, manage legal cases and documents, connect with advocates, conduct consultations, and verify document integrity.
+### Legal assistance. Secure workflows. Verifiable documents.
 
-The platform combines **Artificial Intelligence, cybersecurity, blockchain-based document integrity, secure authentication, and administrative controls** into a unified legal-tech application.
+**An AI-powered legal-tech platform designed to make legal information and digital legal workflows more accessible, connected, and secure.**
+
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-nyayaai.online-C27635?style=for-the-badge)](https://nyayaai.online)
+[![Frontend](https://img.shields.io/badge/Frontend-React_%2B_TypeScript-3178C6?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
+[![Backend](https://img.shields.io/badge/Backend-Node.js_%2B_Express-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Database](https://img.shields.io/badge/Database-MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
+
+<br/>
+
+**AI × LegalTech × Cybersecurity × Blockchain**
+
+</div>
 
 ---
 
-## 🚀 Key Features
+## 🚀 The idea
+
+Legal information, advocate discovery, case coordination, and document handling are often spread across disconnected processes. **Nyaya AI brings these workflows together in one platform.**
+
+It combines an AI legal assistant with citizen–advocate workflows, secure document management, document-integrity verification, and administrative oversight.
+
+> **Our goal:** Build a practical legal-tech ecosystem where useful AI capabilities are supported by secure engineering and transparent document workflows.
+
+---
+
+## ✨ What can you do with Nyaya AI?
+
+<table>
+<tr>
+<td width="50%" valign="top">
 
 ### 🤖 AI Legal Assistant
+- Ask legal questions through a conversational interface
+- Get AI-assisted legal information and guidance
+- Work with document-related queries
+- Use speech-to-text interaction support
 
-Nyaya AI provides AI-assisted legal support through a conversational interface.
-
-Features include:
-
-- AI-powered legal question assistance
-- Context-aware conversations
-- Legal information and guidance
-- Document-related assistance
-- Speech-to-text support
-- AI-powered interaction workflows
-
-> **Disclaimer:** Nyaya AI provides AI-assisted legal information and does not replace a qualified lawyer or professional legal advice.
-
----
-
-### 📁 Case Management
-
-Users can manage their legal cases through the platform.
-
-Capabilities include:
-
-- Create and manage cases
-- Store case-related information
-- Track case details
-- Associate documents with cases
-- Manage case-specific information securely
-
----
+</td>
+<td width="50%" valign="top">
 
 ### 👨‍⚖️ Advocate Discovery
+- Search for advocates
+- Filter by district/location and practice area
+- Explore advocate profiles and professional information
+- Access consultation workflows
 
-Citizens can discover advocates according to their requirements.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 
-Features include:
+### 📁 Case & Document Management
+- Create and manage legal cases
+- Associate documents with cases
+- Store case-related information
+- Track document activity and access
 
-- Advocate search
-- Search by district/location
-- Practice-area filtering
-- Advocate profiles
-- Professional information
-- Court information
-- Experience information
-- Contact information with privacy protection
-- Advocate consultation workflows
-
----
+</td>
+<td width="50%" valign="top">
 
 ### 📅 Consultations & Meetings
+- Request consultations
+- Manage appointments and meetings
+- Support citizen–advocate interactions
+- Validate participation in consultation workflows
 
-The platform supports interaction between citizens and advocates.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 
-Features include:
+### ⛓️ Document Integrity Verification
+- Generate SHA-256 document hashes
+- Register or compare document-integrity values
+- Check whether a registered document has changed
+- Return clear verification states
 
-- Consultation requests
-- Appointment management
-- Meeting management
-- Advocate/citizen participation validation
-- Consultation-related workflows
+</td>
+<td width="50%" valign="top">
 
----
-
-## 🔐 Secure Document Management
-
-Nyaya AI provides secure document management for legal files.
-
-Features include:
-
-- Document upload
-- Document storage
-- Document metadata
-- Case-document association
-- Document security controls
-- Document access controls
-- Document activity tracking
-- Document integrity verification
-
----
-
-## 🔏 Document Integrity Verification
-
-Nyaya AI uses cryptographic hashing to help verify whether a document has been modified.
-
-A document can be processed using a cryptographic hash such as **SHA-256**.
-
-The system compares the current document hash with its previously registered integrity value.
-
-This provides a mechanism for detecting changes to registered documents.
-
-### Verification States
-
-The blockchain verification workflow can return states including:
-
-- `verified`
-- `tampered`
-- `not_registered`
-- `blockchain_unavailable`
-
-Example:
-
-```text
-Legal Document
-      ↓
-Generate SHA-256 Hash
-      ↓
-Register / Compare Integrity Hash
-      ↓
-Blockchain Verification
-      ↓
-Verification Result
-```
-
----
-
-## ⛓️ Blockchain-Based Document Integrity
-
-Nyaya AI uses blockchain technology as an additional integrity layer for important legal documents.
-
-Instead of storing the complete document directly on the blockchain, the system uses a cryptographic hash representing the document.
-
-Conceptually:
-
-```text
-Legal Document
-      ↓
-SHA-256 Hash
-      ↓
-Blockchain Record
-      ↓
-Later Verification
-      ↓
-Hash Comparison
-      ↓
-Integrity Result
-```
-
-This provides a mechanism for detecting changes to a registered document.
-
-> Blockchain anchoring is used for document integrity verification. It does not by itself constitute a legally valid digital signature or statutory certification.
-
----
-
-## 🛡️ Cybersecurity
-
-Security is a core part of the Nyaya AI architecture.
-
-The platform includes multiple security mechanisms across authentication, authorization, sessions, API protection, and data access.
-
-### Authentication
-
-The system supports:
-
-- Email/password authentication
-- Advocate authentication
-- Google authentication
+### 🛡️ Security & Audit Trail
 - JWT-based authentication
-- Access tokens
-- Refresh tokens
-- Secure session handling
+- Secure, HttpOnly cookie handling
+- CSRF protection and rate limiting
+- Role-based authorization and activity logs
 
-### Password Security
-
-Passwords are stored using secure password hashing rather than plaintext storage.
-
-The backend uses **bcrypt** for password verification.
-
-### Secure Cookies
-
-Authentication tokens are handled using secure HTTP cookies.
-
-The system uses:
-
-- HttpOnly cookies
-- Secure cookie configuration
-- Access-token expiration
-- Refresh-token storage mechanisms
-
-Sensitive authentication tokens are not intentionally exposed to frontend JavaScript.
-
-### CSRF Protection
-
-The application includes CSRF protection for protected requests.
-
-This provides an additional security layer for cookie-based authentication.
-
-### Rate Limiting
-
-Authentication-related APIs use rate limiting to reduce the risk of:
-
-- Brute-force attacks
-- Excessive authentication requests
-- Automated abuse
-
-### Security Headers
-
-The backend uses security middleware such as Helmet to apply HTTP security headers.
-
-### Authorization
-
-Protected backend routes verify the authenticated user before allowing access to protected resources.
-
-The system uses role-based authorization concepts for:
-
-- Citizens
-- Lawyers/Advocates
-- Administrators
+</td>
+</tr>
+</table>
 
 ---
 
-## 📝 Audit Trail
+## 🔐 What makes the document workflow different?
 
-Nyaya AI includes an audit logging system for tracking important document-related activities.
+A legal document is more than a file. Its integrity and activity history matter.
 
-The audit system can record information such as:
+Nyaya AI uses **cryptographic hashing and blockchain-based integrity records** to help detect changes to registered documents.
 
-- User
-- Entity type
-- Entity ID
-- Action
-- Description
-- IP address
-- User agent
-- Metadata
-- Timestamp
-
-The administrator can view audit information associated with individual users and advocates.
-
-Example:
+### How verification works
 
 ```text
-User uploads document
-        ↓
-Document activity occurs
-        ↓
-Activity is recorded
-        ↓
-Administrator can review the audit history
+       Original legal document
+                 │
+                 ▼
+          Generate SHA-256
+                 │
+                 ▼
+       Register integrity hash
+                 │
+                 ▼
+       Blockchain-based record
+                 │
+        Later verification
+                 │
+                 ▼
+      Hash comparison and result
 ```
 
----
+### Verification outcomes
 
-## 👥 User Roles
+| Status | Meaning |
+|---|---|
+| `verified` | The document matches its registered integrity value |
+| `tampered` | The current document does not match the registered value |
+| `not_registered` | No integrity record was found |
+| `blockchain_unavailable` | The blockchain verification service is unavailable |
 
-Nyaya AI currently defines the following roles:
-
-| Role | Description |
-|------|-------------|
-| `citizen` | Regular platform user |
-| `lawyer` | Advocate/legal professional |
-| `admin` | Administrative user |
-
-Public registration does not allow users to directly assign themselves the `admin` role.
+**Important:** The document itself is not stored directly on the blockchain as part of this integrity workflow. Blockchain anchoring helps detect changes; it does not, by itself, establish legal validity, ownership, authorship, or a legally valid digital signature.
 
 ---
 
-## 👨‍💼 Admin Portal
+## 🛡️ Security is part of the architecture
 
-Nyaya AI includes a dedicated administrator portal.
+Nyaya AI applies multiple layers of protection across authentication, API access, and document workflows.
 
-### Admin Login
+| Security layer | Implementation |
+|---|---|
+| Authentication | JWT-based access and refresh tokens |
+| Password protection | bcrypt password hashing |
+| Cookie security | HttpOnly cookies and secure cookie configuration |
+| CSRF defense | CSRF protection for protected requests |
+| API abuse protection | Rate limiting on authentication-related APIs |
+| HTTP headers | Helmet security middleware |
+| Authorization | Protected routes and role-based access |
+| Auditability | Document-related activity logging |
+| Secret management | Environment variables for credentials and API keys |
 
-The administrative authentication flow uses:
+### Role-based access
 
-```text
-/adminlogin
-     ↓
-Admin authentication
-     ↓
-/admin
+| Role | Purpose |
+|---|---|
+| `citizen` | Uses legal information and citizen workflows |
+| `lawyer` | Uses advocate and consultation workflows |
+| `admin` | Uses administrative management features |
+
+Public registration does not allow users to assign themselves the `admin` role.
+
+---
+
+## 🧑‍💼 Administrative portal
+
+The platform includes a dedicated admin portal for administrative oversight.
+
+- **User administration:** overview, profile, documents, activity, security, and audit trail.
+- **Advocate administration:** professional profile, documents, consultations, activity, security, and audit trail.
+- **Scoped audit history:** administrators can inspect audit information associated with an individual user or advocate.
+- **Protected access:** administrative pages and APIs require administrator authentication and authorization.
+
+---
+
+## 🧱 System architecture
+
+```mermaid
+flowchart TD
+    A[Citizen / Advocate / Admin] --> B[React + TypeScript Frontend]
+    B -->|HTTPS / REST API| C[Node.js + Express Backend]
+    C --> D[(MySQL Database)]
+    C --> E[AI & External Services]
+    C --> F[Document Integrity Layer]
+    F --> G[Cryptographic Hashing]
+    G --> H[Blockchain Record]
+    C --> I[Authentication & Authorization]
+    C --> J[Audit Logging]
 ```
 
-Unauthenticated access to protected administrator pages is redirected to the administrator login page.
-
-### Admin Dashboard
-
-The main administrator dashboard focuses on:
-
-- Users
-- Advocates
-
-Administrators can select an individual user or advocate and inspect relevant information.
-
----
-
-### 👤 User Administration
-
-The administrator can access user-specific information through dedicated sections.
-
-User management includes:
-
-- Overview
-- Profile
-- Documents
-- Activity
-- Security
-- Audit Trail
-
-The audit trail is scoped to the selected user.
-
----
-
-### 👨‍⚖️ Advocate Administration
-
-Administrators can inspect advocate-specific information.
-
-Advocate administration includes:
-
-- Overview
-- Professional Profile
-- Documents
-- Consultations
-- Activity
-- Security
-- Audit Trail
-
-The audit trail is scoped to the selected advocate.
-
----
-
-# 🏗️ Technology Stack
-
-## Frontend
-
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
-- React Router
-- Three.js
-- React Three Fiber
-
-## Backend
-
-- Node.js
-- Express.js
-- JavaScript
-
-## Database
-
-- MySQL
-
-## AI / External Services
-
-The project integrates external services for capabilities such as:
-
-- AI processing
-- Speech-to-text
-- Email delivery
-- Google authentication
-- Translation-related services where enabled
-
-## Blockchain
-
-- Blockchain-based document integrity verification
-- Cryptographic document hashing
-
-## Deployment
+### Deployment architecture
 
 | Component | Platform |
-|-----------|----------|
+|---|---|
 | Frontend | Vercel |
 | Backend | Render |
-| Database | Railway |
-| Domain | `nyayaai.online` |
+| Database | Railway — MySQL |
+| Production domain | [nyayaai.online](https://nyayaai.online) |
 
 ---
 
-# 🧩 System Architecture
+## 🧰 Technology stack
 
-High-level architecture:
+<div align="center">
 
-```text
-                    ┌──────────────────────┐
-                    │      User / Admin    │
-                    └──────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │   React Frontend     │
-                    │  Vite + TypeScript   │
-                    └──────────┬───────────┘
-                               │
-                               │ HTTPS / API
-                               ▼
-                    ┌──────────────────────┐
-                    │   Express Backend    │
-                    │      Node.js         │
-                    └──────────┬───────────┘
-                               │
-              ┌────────────────┼────────────────┐
-              │                │                │
-              ▼                ▼                ▼
-       ┌────────────┐   ┌─────────────┐  ┌──────────────┐
-       │   MySQL    │   │ AI / APIs   │  │ Blockchain   │
-       │  Database  │   │  Services   │  │  Integrity   │
-       └────────────┘   └─────────────┘  └──────────────┘
-```
+| Layer | Technologies |
+|---|---|
+| **Frontend** | React, TypeScript, Vite, Tailwind CSS, React Router |
+| **3D / Visuals** | Three.js, React Three Fiber |
+| **Backend** | Node.js, Express.js |
+| **Database** | MySQL |
+| **Authentication & Security** | JWT, bcrypt, Helmet, CSRF protection, rate limiting |
+| **AI & Integrations** | External AI, speech-to-text, email, and authentication services |
+| **Document integrity** | SHA-256 hashing, blockchain-based integrity records |
+| **Deployment** | Vercel, Render, Railway |
+
+</div>
 
 ---
 
-# 🔒 Security Architecture
-
-The application follows a layered security approach.
+## 🗂️ Project structure
 
 ```text
-                 HTTPS
-                   │
-                   ▼
-          ┌─────────────────┐
-          │ Security Headers│
-          └────────┬────────┘
-                   │
-                   ▼
-          ┌─────────────────┐
-          │ Rate Limiting   │
-          └────────┬────────┘
-                   │
-                   ▼
-          ┌─────────────────┐
-          │ Authentication  │
-          └────────┬────────┘
-                   │
-                   ▼
-          ┌─────────────────┐
-          │ Authorization   │
-          └────────┬────────┘
-                   │
-                   ▼
-          ┌─────────────────┐
-          │ CSRF Protection │
-          └────────┬────────┘
-                   │
-                   ▼
-          ┌─────────────────┐
-          │ Resource Access │
-          └────────┬────────┘
-                   │
-                   ▼
-          ┌─────────────────┐
-          │   Audit Logs    │
-          └─────────────────┘
-```
-
----
-
-# 📂 Project Structure
-
-The project follows a full-stack structure similar to:
-
-```text
-legal-ai/
-│
+nyaya-ai/
 ├── backend/
 │   ├── database/
 │   ├── middleware/
@@ -475,130 +235,50 @@ legal-ai/
 │   ├── components/
 │   ├── context/
 │   ├── lib/
-│   ├── pages/
-│   │   ├── admin/
-│   │   ├── advocate/
-│   │   └── ...
-│   └── ...
+│   └── pages/
+│       ├── admin/
+│       ├── advocate/
+│       └── ...
 │
 ├── public/
-│
 ├── package.json
 ├── vite.config.ts
 ├── tsconfig.json
-├── README.md
-└── .gitignore
+└── README.md
 ```
 
 ---
 
-# 🔌 API Structure
+## ⚡ Run locally
 
-The backend provides REST API endpoints for the major application modules.
+### Prerequisites
 
-Examples include:
+- Node.js and npm
+- MySQL
+- Git
 
-```text
-/api/auth
-/api/admin
-/api/documents
-/api/cases
-/api/meetings
-/api/appointments
-/api/advocates
+### 1. Clone the repository
+
+```bash
+git clone <YOUR_REPOSITORY_URL>
+cd nyaya-ai
 ```
 
-Protected APIs require appropriate authentication and authorization.
+### 2. Install dependencies
 
----
-
-# 👨‍💼 Admin API
-
-Administrative APIs are protected by administrator authorization.
-
-Examples include:
-
-```text
-GET  /api/admin/me
-
-GET  /api/admin/users
-GET  /api/admin/advocates
-
-GET  /api/admin/users/:userId
-GET  /api/admin/users/:userId/documents
-GET  /api/admin/users/:userId/audit
-
-GET  /api/admin/advocates/:advocateId
-GET  /api/admin/advocates/:advocateId/documents
-GET  /api/admin/advocates/:advocateId/consultations
-GET  /api/admin/advocates/:advocateId/audit
+```bash
+npm install
 ```
 
-Administrator authentication is required for protected administrator endpoints.
+If dependency resolution requires it:
 
----
-
-# ⛓️ Blockchain Verification API
-
-Document integrity verification is exposed through the backend.
-
-Example endpoint:
-
-```text
-POST /api/documents/:id/blockchain/verify
+```bash
+npm install --legacy-peer-deps
 ```
 
-Possible responses include:
+### 3. Configure environment variables
 
-```text
-verified
-tampered
-not_registered
-blockchain_unavailable
-```
-
----
-
-# 🗄️ Database
-
-Nyaya AI uses **MySQL** for persistent application data.
-
-The database contains tables supporting areas such as:
-
-- Users
-- Documents
-- Cases
-- Meetings
-- Appointments
-- Advocate information
-- Authentication/session data
-- Document security
-- Audit logs
-- Other application modules
-
-The `users` table supports the application roles:
-
-```text
-citizen
-lawyer
-admin
-```
-
-The audit system uses a dedicated:
-
-```text
-audit_logs
-```
-
-table.
-
----
-
-# ⚙️ Environment Variables
-
-The application uses environment variables for configuration and sensitive credentials.
-
-Typical frontend configuration includes:
+Create the environment files required by your local setup. The frontend uses:
 
 ```env
 VITE_API_URL=
@@ -618,242 +298,123 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
 RESEND_API_KEY=
-
 GROQ_API_KEY=
-
 SARVAM_API_KEY=
 ```
 
-Actual environment values should **never be committed to Git**.
+Add any other service variables required by the integrations enabled in your environment. **Never commit real credentials, API keys, or `.env` files.**
 
-Use `.env` files locally and configure secrets through the deployment platform.
-
----
-
-# 💻 Development
-
-## Install Dependencies
-
-```bash
-npm install
-```
-
-If dependency resolution requires it:
-
-```bash
-npm install --legacy-peer-deps
-```
-
-## Start Frontend Development Server
+### 4. Start the frontend
 
 ```bash
 npm run dev
 ```
 
-## Build Frontend
+### 5. Create a production build
 
 ```bash
 npm run build
 ```
 
+> The backend and MySQL database must also be configured and running for full-stack functionality. Use the repository's backend setup and database instructions for your environment.
+
 ---
 
-# 🚀 Deployment
+## 🔌 API overview
 
-The current deployment architecture separates the frontend, backend, and database.
+The backend exposes REST API modules including:
 
 ```text
-GitHub
-   │
-   ├──────────────► Vercel
-   │                 │
-   │                 ▼
-   │             Frontend
-   │
-   └──────────────► Render
-                     │
-                     ▼
-                  Backend
-                     │
-                     ▼
-                  Railway
-                     │
-                     ▼
-                   MySQL
+/api/auth
+/api/admin
+/api/documents
+/api/cases
+/api/meetings
+/api/appointments
+/api/advocates
 ```
 
-Environment variables must be configured separately on the deployment platforms.
+Example document-integrity endpoint:
 
----
-
-# 🌐 Production
-
-Production domain:
-
-```text
-https://nyayaai.online
+```http
+POST /api/documents/:id/blockchain/verify
 ```
 
-Administrative login:
+Administrative endpoints include:
 
-```text
-https://nyayaai.online/adminlogin
+```http
+GET /api/admin/me
+GET /api/admin/users
+GET /api/admin/advocates
+GET /api/admin/users/:userId
+GET /api/admin/users/:userId/documents
+GET /api/admin/users/:userId/audit
+GET /api/admin/advocates/:advocateId
+GET /api/admin/advocates/:advocateId/audit
 ```
 
-Administrative dashboard:
-
-```text
-https://nyayaai.online/admin
-```
+Protected endpoints require the appropriate authentication and authorization.
 
 ---
 
-# 🔐 Security Principles
+## 🧭 Try the platform
 
-Nyaya AI follows several security principles:
+- **Live platform:** [https://nyayaai.online](https://nyayaai.online)
+- **Admin login:** [https://nyayaai.online/adminlogin](https://nyayaai.online/adminlogin)
 
-1. Do not store plaintext passwords.
-2. Do not expose authentication secrets to frontend code.
-3. Use secure authentication cookies.
-4. Validate authenticated users on protected backend routes.
-5. Apply role-based authorization.
-6. Protect authentication endpoints with rate limiting.
-7. Use CSRF protection for cookie-based authentication.
-8. Use security headers.
-9. Keep database credentials in environment variables.
-10. Do not commit `.env` files or API keys.
-11. Record important document activities through audit logging.
-12. Use cryptographic hashing for document integrity verification.
-13. Separate administrative functionality from normal user workflows.
-14. Avoid exposing sensitive credential information through administrator APIs.
+The admin dashboard is protected and requires authorized administrator access.
 
 ---
 
-# 🧪 Testing
+## 🔭 Engineering focus
 
-Automated testing is part of the project's ongoing engineering improvements.
+Nyaya AI is an evolving project. Ongoing engineering priorities include:
 
-Areas intended for automated testing include:
-
-- Authentication
-- Authorization
-- Admin access control
-- Document ownership
-- Document integrity verification
-- Audit logging
-- API security
-- Role-based access control
-
-Security-sensitive backend functionality should be validated through appropriate automated and manual tests before production use.
+- Expanding automated tests for authentication, authorization, and document workflows
+- Improving API security and role-based access controls
+- Strengthening auditability and production logging
+- Improving maintainability and documentation
+- Validating security-sensitive workflows through automated and manual testing
 
 ---
 
-# 📊 Current Development Priorities
+## ⚖️ Responsible use
 
-The project continues to improve its engineering quality in areas including:
+Nyaya AI provides AI-assisted legal information and digital legal workflows. AI-generated responses may be inaccurate or incomplete and are **not a substitute for advice from a qualified advocate or legal professional**.
 
-- Automated security and API tests
-- Repository cleanup
-- Production logging
-- Documentation
-- Component maintainability
-- Role-based access control
-- Auditability
-- Security hardening
-
-These improvements are intended to make the platform easier to maintain, test, and scale.
+Users should independently verify important legal information and consult a qualified professional when needed. Blockchain-based document verification is an integrity-checking mechanism and does not, by itself, certify a document's legal validity.
 
 ---
 
-# 🧠 Design Philosophy
+## 🤝 Contributing
 
-Nyaya AI is designed around the principle of combining:
-
-```text
-Artificial Intelligence
-        +
-Secure Software Engineering
-        +
-Legal Workflows
-        +
-Document Integrity
-        +
-Blockchain Technology
-        +
-Administrative Oversight
-```
-
-The objective is to provide a technology platform that can support legal information workflows while maintaining strong attention to security, privacy, and document integrity.
-
----
-
-# ⚠️ Legal & AI Disclaimer
-
-Nyaya AI is a technology platform intended to provide AI-assisted legal information and digital legal workflows.
-
-AI-generated responses may contain errors or incomplete information and should not be treated as a substitute for advice from a qualified legal professional.
-
-Users should verify important legal information and consult an appropriately qualified advocate or legal professional where necessary.
-
-Blockchain-based document verification provides an integrity mechanism and does not, by itself, establish legal validity, ownership, authorship, or the validity of a digital signature.
-
----
-
-# 🤝 Contributing
-
-Contributions and improvements should follow the project's existing architecture and security requirements.
+Contributions and suggestions are welcome.
 
 Before submitting changes:
 
-1. Review the existing implementation.
-2. Avoid exposing secrets or credentials.
-3. Preserve authentication and authorization controls.
-4. Test affected functionality.
-5. Keep changes focused.
-6. Update documentation when necessary.
+1. Review the existing implementation and architecture.
+2. Keep changes focused and explain their purpose.
+3. Preserve authentication, authorization, and document-access controls.
+4. Never include credentials or private user data.
+5. Test the affected functionality.
+6. Update documentation when behavior changes.
 
 ---
 
-# 📜 License
+## 📜 License
 
-License information for this project will be added according to the project's final distribution and ownership requirements.
-
----
-
-# 👨‍💻 Project
-
-**Nyaya AI**
-
-AI-powered legal assistance and secure legal technology platform.
-
-Built with:
-
-```text
-React
-TypeScript
-Vite
-Tailwind CSS
-Node.js
-Express
-MySQL
-Artificial Intelligence
-Blockchain
-Cybersecurity
-```
+License information will be added according to the project's final distribution and ownership requirements.
 
 ---
 
-## ⭐ Project Focus
+<div align="center">
 
-Nyaya AI focuses on building a secure and practical legal-tech ecosystem combining:
+### ⚖️ Nyaya AI
 
-- AI-assisted legal information
-- Citizen–advocate connectivity
-- Case management
-- Secure document management
-- Document integrity verification
-- Blockchain-based integrity records
-- Audit trails
-- Authentication and authorization
-- Administrative oversight
-- Cybersecurity-focused architecture
+**Making legal workflows more accessible, connected, and secure.**
+
+[🌐 Visit Nyaya AI](https://nyayaai.online)
+
+*Built with AI, secure software engineering, and a focus on document integrity.*
+
+</div>
