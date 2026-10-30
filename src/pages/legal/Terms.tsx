@@ -1,4 +1,3 @@
-```tsx
 import LegalPage, { LegalSection } from './LegalPage'
 
 export default function Terms() {
@@ -257,4 +256,3 @@ export default function Terms() {
     </LegalPage>
   )
 }
-```
