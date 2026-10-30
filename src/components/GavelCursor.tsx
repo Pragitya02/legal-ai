@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 type CursorState = 'default' | 'hover' | 'click' | 'loading' | 'move' | 'disabled' | 'busy' | 'text'
 
-/** Custom image-based gavel cursor with a two-second click effect. */
+/** Custom image-based gavel cursor with a short click effect. */
 export default function GavelCursor() {
   const [position, setPosition] = useState({ x: -100, y: -100 })
   const [state, setState] = useState<CursorState>('default')
@@ -27,7 +27,7 @@ export default function GavelCursor() {
     const onMove = (event: PointerEvent) => {
       latestPosition.current = { x: event.clientX, y: event.clientY }
       setPosition(latestPosition.current)
-      // Keep the click pose active for two seconds, even if the pointer moves.
+      // Keep the click pose active briefly, even if the pointer moves.
       if (clickResetTimer.current) {
         setState('click')
         return
@@ -43,7 +43,7 @@ export default function GavelCursor() {
         clickResetTimer.current = null
         const { x, y } = latestPosition.current
         setState(getRestingState(document.elementFromPoint(x, y)))
-      }, 2000)
+      }, 300)
     }
 
     const onBlur = () => {

@@ -791,22 +791,22 @@ hr {
   .gavel-cursor {
     position: fixed;
     z-index: 2147483647;
-    width: 60px;
-    height: 60px;
+    width: 42px;
+    height: 42px;
     pointer-events: none;
     /* Keep the gavel head close to the actual pointer hotspot. */
     transform: translate(-8px, -7px);
     display: grid;
     place-items: center;
-    transition: filter 120ms ease;
+    transition: filter 70ms ease;
     will-change: left, top, transform;
   }
   .gavel-cursor img {
-    width: 60px;
-    height: 60px;
+    width: 42px;
+    height: 42px;
     object-fit: contain;
     user-select: none;
-    transition: transform 120ms ease, filter 120ms ease;
+    transition: transform 70ms ease, filter 70ms ease;
   }
   .gavel-cursor--hover img { filter: drop-shadow(0 0 5px rgba(227, 161, 95, .85)); transform: scale(1.04); }
   .gavel-cursor--click img { transform: rotate(-12deg) scale(.94); filter: drop-shadow(0 0 7px rgba(227, 161, 95, .95)); }
