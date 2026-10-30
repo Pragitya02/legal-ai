@@ -5,6 +5,7 @@ import {
   Check,
   Copy,
   Download,
+  EllipsisVertical,
   FileText,
   Loader2,
   Mail,
@@ -107,11 +108,13 @@ export default function Work() {
   const [loadingConv, setLoadingConv] = useState(false)
   const [saving, setSaving] = useState(false)
   const [pdfUrl, setPdfUrl] = useState('')
+  const [taskMenu, setTaskMenu] = useState(false)
   const viewRef = useRef(0) // bumps whenever the visible conversation changes
 
   const fileRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const textRef = useRef<HTMLTextAreaElement>(null)
+  const taskMenuRef = useRef<HTMLDivElement>(null)
 
   const loadConvs = useCallback(async (q = '') => {
     try {
@@ -320,11 +323,29 @@ export default function Work() {
   }
 
   const pickTask = (t: (typeof tasks)[number]) => {
+    setTaskMenu(false)
     if (t.upload) fileRef.current?.click()
     setPdfMode(!!t.pdf)
     setInput(t.prompt)
     setTimeout(() => textRef.current?.focus(), 0)
   }
+
+  // Close the task menu on outside click / Escape.
+  useEffect(() => {
+    if (!taskMenu) return
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (!taskMenuRef.current?.contains(e.target as Node)) setTaskMenu(false)
+    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setTaskMenu(false)
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('touchstart', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('touchstart', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [taskMenu])
 
   // Build the preview PDF in an effect so the blob URL is created/revoked safely (StrictMode-proof).
   useEffect(() => {
@@ -570,6 +591,37 @@ export default function Work() {
                   >
                     {busy ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                   </button>
+                  {messages.length > 0 && (
+                    <div ref={taskMenuRef} className="relative">
+                      <button
+                        onClick={() => setTaskMenu((v) => !v)}
+                        aria-label="Task options"
+                        aria-haspopup="menu"
+                        aria-expanded={taskMenu}
+                        className={`rounded-lg p-2 hover:bg-[#30251C] hover:text-[#C27635] ${taskMenu ? 'bg-[#30251C] text-[#C27635]' : 'text-[#B9AEA3]'}`}
+                      >
+                        <EllipsisVertical size={18} />
+                      </button>
+                      {taskMenu && (
+                        <div
+                          role="menu"
+                          className="absolute bottom-full right-0 z-30 mb-2 max-h-[min(20rem,60vh)] w-60 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-[#C27635]/40 bg-[#1B1816] p-1 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.7)]"
+                        >
+                          {tasks.map((t) => (
+                            <button
+                              key={t.label}
+                              role="menuitem"
+                              onClick={() => pickTask(t)}
+                              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[#F5F1EB] transition-colors hover:bg-[#30251C] hover:text-[#C27635] focus-visible:bg-[#30251C] focus-visible:outline-none"
+                            >
+                              <span className="text-base leading-none">{t.icon}</span>
+                              <span className="truncate">{t.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
