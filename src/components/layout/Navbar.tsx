@@ -92,11 +92,12 @@ export default function Navbar() {
         >
 
           {/* =====================================================
-              ALPINE LOGO
+              NYAYA AI LOGO
               ===================================================== */}
 
           <Link
             to="/"
+            aria-label="Nyaya AI Home"
             style={{
               textDecoration: 'none',
               display: 'flex',
@@ -106,28 +107,18 @@ export default function Navbar() {
           >
             <span
               style={{
-                fontFamily:
-                  'Arial, Helvetica, sans-serif',
-
+                fontFamily: 'Arial, Helvetica, sans-serif',
                 fontSize: '24px',
-
                 fontWeight: 900,
-
-                letterSpacing: '4px',
-
-                color: '#C27635',
-
+                letterSpacing: '2px',
                 lineHeight: 1,
-
-                textTransform: 'uppercase',
-
                 whiteSpace: 'nowrap',
-
-                textShadow:
-                  '0 0 12px rgba(194,118,53,0.18)',
+                textShadow: '0 0 12px rgba(194,118,53,0.18)',
               }}
             >
-              Nyaya AI
+              <span style={{ color: '#FFFFFF' }}>Nyaya</span>
+              {' '}
+              <span style={{ color: '#C27635' }}>AI</span>
             </span>
           </Link>
 
