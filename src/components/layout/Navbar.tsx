@@ -97,7 +97,7 @@ export default function Navbar() {
 
           <Link
             to="/"
-            aria-label="NyayaAI Home"
+            aria-label="Nyaya AI Home"
             style={{
               textDecoration: 'none',
               display: 'flex',

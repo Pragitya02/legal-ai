@@ -1364,7 +1364,7 @@ export default function Landing() {
 
                 }}>
 
-                  Nyaya AI
+                  NyayaAI
 
                 </span>
 
