@@ -7,6 +7,7 @@ import {
   Download,
   FileText,
   Loader2,
+  Mail,
   Paperclip,
   Pencil,
   Plus,
@@ -59,6 +60,23 @@ const ADVOCATE_TASKS = [
 const wantsPdf = (t: string) =>
   /\b(create|generate|make|prepare|build|produce|export|draft|write)\b\s+(me\s+)?(a|an|the)?\s*([\w-]+\s+){0,4}pdf\b/i.test(t) &&
   !/\b(this|the|uploaded|attached|my)\s+pdf\b/i.test(t)
+
+// Splits a generated email (plain Markdown text) into subject + body. Returns null if it is not an email draft.
+const MAX_GMAIL_URL = 7500
+const parseEmail = (text: string): { subject: string; body: string } | null => {
+  const lines = (text || '').replace(/\r\n/g, '\n').split('\n')
+  const idx = lines.slice(0, 8).findIndex((l) => /^[\s>#*_-]*subject\s*:/i.test(l))
+  if (idx === -1) return null
+  const clean = (t: string) => t.replace(/\*\*|__/g, '').replace(/^\s*#{1,6}\s+/, '').trim()
+  const subject = clean(lines[idx].replace(/^[\s>#*_-]*subject\s*:/i, '').replace(/^\s*\*\*|\*\*\s*$/g, ''))
+  const body = lines
+    .slice(idx + 1)
+    .filter((l) => !/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(l))
+    .map((l) => l.replace(/\*\*|__/g, '').replace(/^\s*#{1,6}\s+/, ''))
+    .join('\n')
+    .trim()
+  return subject && body ? { subject, body } : null
+}
 
 async function api(path: string, init: RequestInit = {}) {
   const res = await fetch(`${API}/api/work${path}`, { ...init, credentials: 'include' })
@@ -247,6 +265,20 @@ export default function Work() {
     } catch {
       setError('Copy failed. Please copy manually.')
     }
+  }
+
+  const exportEmail = (m: Msg) => {
+    const email = parseEmail(m.content)
+    if (!email) {
+      setError('Could not find an email subject and body to export.')
+      return
+    }
+    const url = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`
+    if (url.length > MAX_GMAIL_URL) {
+      setError('This email is too long to export to Gmail automatically. Use Copy and paste it into Gmail instead.')
+      return
+    }
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   const saveEdit = async () => {
@@ -464,6 +496,9 @@ export default function Work() {
                               <button onClick={() => { if (isDoc) setPreview(m); setEditing({ id: m.id, text: m.content }) }} className="flex items-center gap-1 hover:text-[#C27635]"><Pencil size={13} /> Edit</button>
                               {!isDoc && (
                                 <button onClick={() => getPdf(m.title || 'Nyaya Work', m.content)} className="flex items-center gap-1 hover:text-[#C27635]"><Download size={13} /> PDF</button>
+                              )}
+                              {!isDoc && parseEmail(m.content) && (
+                                <button onClick={() => exportEmail(m)} className="flex items-center gap-1 hover:text-[#C27635]"><Mail size={13} /> Export Email</button>
                               )}
                             </div>
                           )}
