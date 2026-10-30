@@ -1,5 +1,7 @@
 const db = require("../db");
 
+const OPTS = "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+
 const STATEMENTS = [
 `CREATE TABLE IF NOT EXISTS work_conversations (
   id INT NOT NULL AUTO_INCREMENT,
@@ -8,8 +10,9 @@ const STATEMENTS = [
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  INDEX idx_work_conv_user (user_id, updated_at)
-)`,
+  INDEX idx_work_conv_user (user_id, updated_at),
+  CONSTRAINT fk_work_conv_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ${OPTS}`,
 `CREATE TABLE IF NOT EXISTS work_messages (
   id INT NOT NULL AUTO_INCREMENT,
   conversation_id INT NOT NULL,
@@ -21,7 +24,7 @@ const STATEMENTS = [
   PRIMARY KEY (id),
   INDEX idx_work_msg_conv (conversation_id, id),
   CONSTRAINT fk_work_msg_conv FOREIGN KEY (conversation_id) REFERENCES work_conversations(id) ON DELETE CASCADE
-)`,
+) ${OPTS}`,
 `CREATE TABLE IF NOT EXISTS work_documents (
   id INT NOT NULL AUTO_INCREMENT,
   conversation_id INT NOT NULL,
@@ -33,12 +36,23 @@ const STATEMENTS = [
   PRIMARY KEY (id),
   INDEX idx_work_doc_conv (conversation_id, user_id),
   CONSTRAINT fk_work_doc_conv FOREIGN KEY (conversation_id) REFERENCES work_conversations(id) ON DELETE CASCADE
-)`,
+) ${OPTS}`,
 ];
 
-async function ensureWorkTables() {
-  for (const stmt of STATEMENTS) await db.query(stmt);
-  console.log("WORK TABLES READY");
+// Memoised: runs once per process; a failed attempt (e.g. users table not
+// created yet on a fresh DB) is retried on the next call instead of cached.
+let ready = null;
+function ensureWorkTables() {
+  if (!ready) {
+    ready = (async () => {
+      for (const stmt of STATEMENTS) await db.query(stmt);
+      console.log("WORK TABLES READY");
+    })().catch((err) => {
+      ready = null;
+      throw err;
+    });
+  }
+  return ready;
 }
 
 async function createConversation(userId, title) {
@@ -89,13 +103,44 @@ async function deleteConversation(id, userId) {
   return r.affectedRows > 0;
 }
 
-async function addMessage(conversationId, role, content, kind = "chat", title = null) {
+// Persists a user message and its assistant reply together (only called after the AI succeeded).
+async function addExchange(conversationId, userContent, reply) {
+  await db.query(
+    "INSERT INTO work_messages (conversation_id, role, kind, content) VALUES (?, 'user', 'chat', ?)",
+    [conversationId, userContent]
+  );
   const [r] = await db.query(
-    "INSERT INTO work_messages (conversation_id, role, kind, title, content) VALUES (?, ?, ?, ?, ?)",
-    [conversationId, role, kind, title, content]
+    "INSERT INTO work_messages (conversation_id, role, kind, title, content) VALUES (?, 'assistant', ?, ?, ?)",
+    [conversationId, reply.kind || "chat", reply.title || null, reply.content]
   );
   await touchConversation(conversationId);
   return r.insertId;
+}
+
+// Only the owner can edit, and only assistant messages.
+async function updateMessage(id, userId, content, title) {
+  const [rows] = await db.query(
+    `SELECT m.id, m.kind FROM work_messages m
+       JOIN work_conversations c ON c.id = m.conversation_id
+      WHERE m.id = ? AND c.user_id = ? AND m.role = 'assistant' LIMIT 1`,
+    [id, userId]
+  );
+  if (!rows.length) return null;
+  const newTitle = rows[0].kind === "document" && title ? title.slice(0, 200) : null;
+  await db.query(
+    "UPDATE work_messages SET content = ?, title = COALESCE(?, title) WHERE id = ?",
+    [content, newTitle, id]
+  );
+  const [out] = await db.query("SELECT id, content, title FROM work_messages WHERE id = ?", [id]);
+  return out[0];
+}
+
+async function countDocuments(conversationId, userId) {
+  const [rows] = await db.query(
+    "SELECT COUNT(*) AS n FROM work_documents WHERE conversation_id = ? AND user_id = ?",
+    [conversationId, userId]
+  );
+  return Number(rows[0].n);
 }
 
 async function getMessages(conversationId, limit = 500) {
@@ -132,12 +177,8 @@ async function getDocuments(conversationId, userId, withText = false) {
   return rows;
 }
 
-async function renameConversation(id, title) {
-  await db.query("UPDATE work_conversations SET title = ? WHERE id = ?", [title.slice(0, 200), id]);
-}
-
 module.exports = {
   ensureWorkTables, createConversation, getConversation, listConversations,
-  deleteConversation, addMessage, getMessages, getRecentMessages,
-  addDocument, getDocuments, renameConversation,
+  deleteConversation, addExchange, updateMessage, countDocuments, getMessages, getRecentMessages,
+  addDocument, getDocuments,
 };

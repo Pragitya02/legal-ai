@@ -6,8 +6,9 @@ CREATE TABLE IF NOT EXISTS work_conversations (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  INDEX idx_work_conv_user (user_id, updated_at)
-);
+  INDEX idx_work_conv_user (user_id, updated_at),
+  CONSTRAINT fk_work_conv_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS work_messages (
   id INT NOT NULL AUTO_INCREMENT,
   conversation_id INT NOT NULL,
@@ -19,7 +20,7 @@ CREATE TABLE IF NOT EXISTS work_messages (
   PRIMARY KEY (id),
   INDEX idx_work_msg_conv (conversation_id, id),
   CONSTRAINT fk_work_msg_conv FOREIGN KEY (conversation_id) REFERENCES work_conversations(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS work_documents (
   id INT NOT NULL AUTO_INCREMENT,
   conversation_id INT NOT NULL,
@@ -31,4 +32,4 @@ CREATE TABLE IF NOT EXISTS work_documents (
   PRIMARY KEY (id),
   INDEX idx_work_doc_conv (conversation_id, user_id),
   CONSTRAINT fk_work_doc_conv FOREIGN KEY (conversation_id) REFERENCES work_conversations(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

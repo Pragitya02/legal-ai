@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
 import {
   BriefcaseBusiness,
@@ -17,7 +17,12 @@ import {
   Menu,
 } from 'lucide-react'
 import AnimatedMarkdown from '../components/AnimatedMarkdown'
-import { downloadPdf, pdfBlobUrl } from '../lib/workPdf'
+
+// Loaded on demand so jsPDF is not part of the main dashboard bundle.
+const pdfLib = () => import('../lib/workPdf')
+const MAX_PROMPT = 8000
+const MAX_UPLOAD = 25 * 1024 * 1024
+const ACTIVE_KEY = 'work:active'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5001'
 const BRONZE = '#C27635'
@@ -51,8 +56,10 @@ const ADVOCATE_TASKS = [
   { label: 'Ask Anything', prompt: '', icon: '💬' },
 ]
 
+// "Create a PDF report…" -> document mode; "summarize this PDF" -> normal chat.
 const wantsPdf = (t: string) =>
-  /\bpdf\b/i.test(t) && /(create|generate|make|prepare|write|draft|build|export|produce)/i.test(t)
+  /\b(create|generate|make|prepare|build|produce|export|draft|write)\b\s+(me\s+)?(a|an|the)?\s*([\w-]+\s+){0,4}pdf\b/i.test(t) &&
+  !/\b(this|the|uploaded|attached|my)\s+pdf\b/i.test(t)
 
 async function api(path: string, init: RequestInit = {}) {
   const res = await fetch(`${API}/api/work${path}`, { ...init, credentials: 'include' })
@@ -80,6 +87,10 @@ export default function Work() {
   const [preview, setPreview] = useState<Msg | null>(null)
   const [editing, setEditing] = useState<{ id: Msg['id']; text: string } | null>(null)
   const [copied, setCopied] = useState<Msg['id'] | null>(null)
+  const [loadingConv, setLoadingConv] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState('')
+  const viewRef = useRef(0) // bumps whenever the visible conversation changes
 
   const fileRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -103,21 +114,46 @@ export default function Work() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, busy])
 
-  const openConv = async (id: number) => {
+  const openConv = useCallback(async (id: number, silent = false) => {
+    const view = ++viewRef.current
     setError('')
     setSidebar(false)
     setPreview(null)
+    setEditing(null)
+    setBusy(false)
+    setLoadingConv(true)
     try {
       const d = await api(`/conversations/${id}`)
+      if (viewRef.current !== view) return
       setActiveId(id)
+      sessionStorage.setItem(ACTIVE_KEY, String(id))
       setMessages(d.messages || [])
       setDocs(d.documents || [])
     } catch (e) {
-      setError((e as Error).message)
+      if (viewRef.current !== view) return
+      if (silent) sessionStorage.removeItem(ACTIVE_KEY)
+      else setError((e as Error).message)
+    } finally {
+      if (viewRef.current === view) setLoadingConv(false)
     }
-  }
+  }, [])
+
+  // Reopen the last conversation after a page refresh.
+  useEffect(() => {
+    try {
+      const saved = Number(sessionStorage.getItem(ACTIVE_KEY))
+      if (saved > 0) openConv(saved, true)
+    } catch {
+      /* storage unavailable */
+    }
+  }, [openConv])
 
   const newChat = () => {
+    viewRef.current++
+    sessionStorage.removeItem(ACTIVE_KEY)
+    setBusy(false)
+    setLoadingConv(false)
+    setEditing(null)
     setActiveId(null)
     setMessages([])
     setDocs([])
@@ -141,35 +177,51 @@ export default function Work() {
   const send = async (override?: string) => {
     const text = (override ?? input).trim()
     if (!text || busy) return
+    if (text.length > MAX_PROMPT) {
+      setError(`Message is too long (max ${MAX_PROMPT} characters).`)
+      return
+    }
     setError('')
     setInput('')
     const asPdf = pdfMode || wantsPdf(text)
-    setMessages((m) => [...m, { id: `u${Date.now()}`, role: 'user', content: text }])
+    const view = viewRef.current
+    const tempId = `u${Date.now()}`
+    setMessages((m) => [...m, { id: tempId, role: 'user', content: text }])
     setBusy(true)
     try {
       const d = await api(asPdf ? '/documents/generate' : '/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
-          asPdf
-            ? { conversationId: activeId, prompt: text }
-            : { conversationId: activeId, message: text },
+          asPdf ? { conversationId: activeId, prompt: text } : { conversationId: activeId, message: text },
         ),
       })
+      loadConvs(search.trim())
+      if (viewRef.current !== view) return // user switched chats; the reply is saved and shows when reopened
       setActiveId(d.conversationId)
+      sessionStorage.setItem(ACTIVE_KEY, String(d.conversationId))
       setMessages((m) => [...m, d.message])
       if (d.message.kind === 'document') setPreview(d.message)
       setPdfMode(false)
-      loadConvs(search.trim())
     } catch (e) {
-      setError((e as Error).message)
+      // Nothing was saved on the server: drop the optimistic bubble and give the text back.
+      if (viewRef.current === view) {
+        setMessages((m) => m.filter((x) => x.id !== tempId))
+        setInput(text)
+        setError((e as Error).message)
+      }
     } finally {
-      setBusy(false)
+      if (viewRef.current === view) setBusy(false)
     }
   }
 
   const upload = async (file?: File | null) => {
     if (!file) return
+    if (file.size > MAX_UPLOAD) {
+      setError('File is too large (max 25 MB).')
+      if (fileRef.current) fileRef.current.value = ''
+      return
+    }
     setUploading(true)
     setError('')
     try {
@@ -198,11 +250,42 @@ export default function Work() {
     }
   }
 
-  const saveEdit = () => {
-    if (!editing) return
-    setMessages((ms) => ms.map((m) => (m.id === editing.id ? { ...m, content: editing.text } : m)))
-    setPreview((p) => (p && p.id === editing.id ? { ...p, content: editing.text } : p))
-    setEditing(null)
+  const saveEdit = async () => {
+    if (!editing || saving) return
+    const text = editing.text.trim()
+    if (!text) {
+      setError('Content cannot be empty.')
+      return
+    }
+    if (typeof editing.id !== 'number') {
+      setEditing(null)
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      const d = await api(`/messages/${editing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: text }),
+      })
+      const saved = d.message as { id: number; content: string; title: string | null }
+      setMessages((ms) => ms.map((m) => (m.id === saved.id ? { ...m, content: saved.content, title: saved.title ?? m.title } : m)))
+      setPreview((p) => (p && p.id === saved.id ? { ...p, content: saved.content, title: saved.title ?? p.title } : p))
+      setEditing(null)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const getPdf = async (title: string, content: string) => {
+    try {
+      ;(await pdfLib()).downloadPdf(title, content)
+    } catch (e) {
+      setError(`Could not create the PDF: ${(e as Error).message}`)
+    }
   }
 
   const pickTask = (t: (typeof tasks)[number]) => {
@@ -212,8 +295,27 @@ export default function Work() {
     setTimeout(() => textRef.current?.focus(), 0)
   }
 
-  const pdfUrl = useMemo(() => (preview ? pdfBlobUrl(preview.title || 'Document', preview.content) : ''), [preview])
-  useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl) }, [pdfUrl])
+  // Build the preview PDF in an effect so the blob URL is created/revoked safely (StrictMode-proof).
+  useEffect(() => {
+    if (!preview) {
+      setPdfUrl('')
+      return
+    }
+    let dead = false
+    let url = ''
+    pdfLib()
+      .then((l) => {
+        if (dead) return
+        url = l.pdfBlobUrl(preview.title || 'Document', preview.content)
+        setPdfUrl(url)
+      })
+      .catch((e) => !dead && setError(`Could not build the PDF preview: ${(e as Error).message}`))
+    return () => {
+      dead = true
+      if (url) URL.revokeObjectURL(url)
+      setPdfUrl('')
+    }
+  }, [preview?.id, preview?.content, preview?.title]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const sidebarEl = (
     <aside className="flex h-full w-72 shrink-0 flex-col border-r border-stone-200 bg-white">
@@ -261,7 +363,7 @@ export default function Work() {
   )
 
   return (
-    <div className="relative flex h-[calc(100vh-4rem)] min-h-[500px] overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
+    <div className="relative flex h-[calc(100dvh-13rem)] min-h-[480px] overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
       <div className="hidden md:block">{sidebarEl}</div>
       {sidebar && (
         <div className="absolute inset-0 z-30 flex md:hidden">
@@ -283,7 +385,11 @@ export default function Work() {
         <div className="flex min-h-0 flex-1">
           <div className="flex min-w-0 flex-1 flex-col">
             <div className="flex-1 overflow-y-auto px-4 py-5">
-              {messages.length === 0 ? (
+              {loadingConv ? (
+                <div className="flex items-center justify-center gap-2 pt-16 text-sm text-stone-500">
+                  <Loader2 size={16} className="animate-spin" /> Loading conversation…
+                </div>
+              ) : messages.length === 0 ? (
                 <div className="mx-auto max-w-3xl pt-6 text-center">
                   <h2 className="text-2xl font-semibold text-stone-800">What would you like to work on?</h2>
                   <p className="mt-1 text-sm text-stone-500">Emails, letters, reports, PDFs, summaries and more.</p>
@@ -317,7 +423,7 @@ export default function Work() {
                         >
                           {m.role === 'user' ? (
                             <p className="whitespace-pre-wrap">{m.content}</p>
-                          ) : isEditing ? (
+                          ) : isEditing && !isDoc ? (
                             <div className="space-y-2">
                               <textarea
                                 value={editing.text}
@@ -326,7 +432,7 @@ export default function Work() {
                                 className="w-full rounded-lg border border-stone-300 p-2 font-mono text-xs outline-none focus:border-[#C27635]"
                               />
                               <div className="flex gap-2">
-                                <button onClick={saveEdit} className="rounded-md px-3 py-1 text-xs text-white" style={{ background: BRONZE }}>Save</button>
+                                <button onClick={saveEdit} disabled={saving} className="rounded-md px-3 py-1 text-xs text-white disabled:opacity-50" style={{ background: BRONZE }}>{saving ? 'Saving…' : 'Save'}</button>
                                 <button onClick={() => setEditing(null)} className="rounded-md border border-stone-300 px-3 py-1 text-xs">Cancel</button>
                               </div>
                             </div>
@@ -342,20 +448,20 @@ export default function Work() {
                             <AnimatedMarkdown content={m.content} />
                           )}
 
-                          {m.role === 'assistant' && !isEditing && (
+                          {m.role === 'assistant' && !(isEditing && !isDoc) && (
                             <div className="mt-3 flex flex-wrap gap-2 border-t border-stone-100 pt-2 text-xs text-stone-500">
                               {isDoc && (
                                 <>
                                   <button onClick={() => setPreview(m)} className="flex items-center gap-1 hover:text-[#C27635]"><FileText size={13} /> Preview</button>
-                                  <button onClick={() => downloadPdf(m.title || 'Document', m.content)} className="flex items-center gap-1 hover:text-[#C27635]"><Download size={13} /> Download PDF</button>
+                                  <button onClick={() => getPdf(m.title || 'Document', m.content)} className="flex items-center gap-1 hover:text-[#C27635]"><Download size={13} /> Download PDF</button>
                                 </>
                               )}
                               <button onClick={() => copy(m)} className="flex items-center gap-1 hover:text-[#C27635]">
                                 {copied === m.id ? <Check size={13} /> : <Copy size={13} />} {copied === m.id ? 'Copied' : 'Copy'}
                               </button>
-                              <button onClick={() => setEditing({ id: m.id, text: m.content })} className="flex items-center gap-1 hover:text-[#C27635]"><Pencil size={13} /> Edit</button>
+                              <button onClick={() => { if (isDoc) setPreview(m); setEditing({ id: m.id, text: m.content }) }} className="flex items-center gap-1 hover:text-[#C27635]"><Pencil size={13} /> Edit</button>
                               {!isDoc && (
-                                <button onClick={() => downloadPdf(m.title || 'Nyaya Work', m.content)} className="flex items-center gap-1 hover:text-[#C27635]"><Download size={13} /> PDF</button>
+                                <button onClick={() => getPdf(m.title || 'Nyaya Work', m.content)} className="flex items-center gap-1 hover:text-[#C27635]"><Download size={13} /> PDF</button>
                               )}
                             </div>
                           )}
@@ -443,7 +549,7 @@ export default function Work() {
                   <button onClick={() => setEditing({ id: preview.id, text: preview.content })} className="p-1 text-stone-500 hover:text-[#C27635]" aria-label="Edit"><Pencil size={16} /></button>
                   <button onClick={() => copy(preview)} className="p-1 text-stone-500 hover:text-[#C27635]" aria-label="Copy"><Copy size={16} /></button>
                   <button
-                    onClick={() => downloadPdf(preview.title || 'Document', preview.content)}
+                    onClick={() => getPdf(preview.title || 'Document', preview.content)}
                     className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-white"
                     style={{ background: BRONZE }}
                   >
@@ -452,7 +558,25 @@ export default function Work() {
                   <button onClick={() => setPreview(null)} className="p-1 text-stone-500" aria-label="Close preview"><X size={16} /></button>
                 </div>
               </div>
-              <iframe title="PDF preview" src={pdfUrl} className="flex-1 w-full" />
+              {editing?.id === preview.id ? (
+                <div className="flex flex-1 flex-col gap-2 p-3">
+                  <textarea
+                    value={editing.text}
+                    onChange={(e) => setEditing({ id: preview.id, text: e.target.value })}
+                    className="flex-1 resize-none rounded-lg border border-stone-300 p-2 font-mono text-xs outline-none focus:border-[#C27635]"
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={saveEdit} disabled={saving} className="rounded-md px-3 py-1.5 text-xs text-white disabled:opacity-50" style={{ background: BRONZE }}>{saving ? 'Saving…' : 'Save & update PDF'}</button>
+                    <button onClick={() => setEditing(null)} className="rounded-md border border-stone-300 px-3 py-1.5 text-xs">Cancel</button>
+                  </div>
+                </div>
+              ) : pdfUrl ? (
+                <iframe title="PDF preview" src={pdfUrl} className="w-full flex-1" />
+              ) : (
+                <div className="flex flex-1 items-center justify-center gap-2 text-sm text-stone-500">
+                  <Loader2 size={16} className="animate-spin" /> Building preview…
+                </div>
+              )}
             </section>
           )}
         </div>
