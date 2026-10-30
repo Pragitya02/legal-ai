@@ -127,7 +127,7 @@ export default function Navbar() {
                   '0 0 12px rgba(194,118,53,0.18)',
               }}
             >
-              ALPINE
+              Nyaya AI
             </span>
           </Link>
 

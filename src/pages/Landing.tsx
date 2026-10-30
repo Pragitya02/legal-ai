@@ -1364,7 +1364,7 @@ export default function Landing() {
 
                 }}>
 
-                  ALPINE
+                  Nyaya AI
 
                 </span>
 
