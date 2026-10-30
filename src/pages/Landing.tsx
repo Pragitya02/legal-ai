@@ -203,18 +203,14 @@ export default function Landing() {
   const navigate = useNavigate()
 
   const handleProtectedNavigation = (path: string) => {
-
-    if (isLoggedIn()) {
-
-      navigate(path)
-
-    } else {
-
-      navigate('/login')
-
-    }
-
+  if (isLoggedIn()) {
+    navigate(path)
+  } else {
+    navigate('/login', {
+      state: { from: path },
+    })
   }
+}
 
 
   useEffect(() => {
