@@ -1,3 +1,4 @@
+
 const express = require("express");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -5,6 +6,7 @@ const {
   createConversation,
   getConversations,
   getConversation,
+  getOrCreateCaseConversation,
 } = require("../database/conversationModel");
 
 const {
@@ -77,6 +79,69 @@ router.post(
       res.status(500).json({
         success: false,
         message: "Failed to create conversation",
+      });
+    }
+  }
+);
+
+
+// =====================================================
+// GET OR CREATE CASE CONVERSATION
+// POST /api/chat/conversations/case/:caseId
+// =====================================================
+
+router.post(
+  "/conversations/case/:caseId",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const caseId = Number(req.params.caseId);
+      const userId = req.user.id;
+
+      if (!Number.isInteger(caseId) || caseId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid case ID",
+        });
+      }
+
+      // Verify that this case belongs to the logged-in user
+      const [caseRows] = await db.execute(
+        `
+        SELECT id, title
+        FROM cases
+        WHERE id = ? AND user_id = ?
+        LIMIT 1
+        `,
+        [caseId, userId]
+      );
+
+      if (caseRows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Case not found",
+        });
+      }
+
+      // Get existing conversation or create a new one
+      const conversationId = await getOrCreateCaseConversation(
+        userId,
+        caseId,
+        caseRows[0].title
+      );
+
+      return res.json({
+        success: true,
+        conversationId,
+        caseId,
+      });
+
+    } catch (err) {
+      console.error("CASE CONVERSATION ERROR:", err);
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to open case conversation",
       });
     }
   }
@@ -159,10 +224,7 @@ router.post(
         });
       }
 
-      const {
-        sender,
-        message,
-      } = req.body;
+      const { sender, message } = req.body;
 
       if (
         typeof sender !== "string" ||
@@ -176,10 +238,7 @@ router.post(
         });
       }
 
-      if (
-        sender !== "user" &&
-        sender !== "ai"
-      ) {
+      if (sender !== "user" && sender !== "ai") {
         return res.status(400).json({
           success: false,
           message: "Sender must be user or ai",
@@ -254,24 +313,16 @@ router.delete(
 
       connection = await db.getConnection();
 
-      // -------------------------------------------------
       // CHECK OWNERSHIP
-      // -------------------------------------------------
-
-      const [conversationRows] =
-        await connection.query(
-          `
-          SELECT id
-          FROM conversations
-          WHERE id = ?
-          AND user_id = ?
-          LIMIT 1
-          `,
-          [
-            conversationId,
-            userId,
-          ]
-        );
+      const [conversationRows] = await connection.query(
+        `
+        SELECT id
+        FROM conversations
+        WHERE id = ? AND user_id = ?
+        LIMIT 1
+        `,
+        [conversationId, userId]
+      );
 
       if (conversationRows.length === 0) {
         return res.status(404).json({
@@ -280,16 +331,10 @@ router.delete(
         });
       }
 
-      // -------------------------------------------------
       // START TRANSACTION
-      // -------------------------------------------------
-
       await connection.beginTransaction();
 
-      // -------------------------------------------------
       // DELETE MESSAGES
-      // -------------------------------------------------
-
       await connection.query(
         `
         DELETE FROM messages
@@ -298,22 +343,14 @@ router.delete(
         [conversationId]
       );
 
-      // -------------------------------------------------
       // DELETE CONVERSATION
-      // -------------------------------------------------
-
-      const [result] =
-        await connection.query(
-          `
-          DELETE FROM conversations
-          WHERE id = ?
-          AND user_id = ?
-          `,
-          [
-            conversationId,
-            userId,
-          ]
-        );
+      const [result] = await connection.query(
+        `
+        DELETE FROM conversations
+        WHERE id = ? AND user_id = ?
+        `,
+        [conversationId, userId]
+      );
 
       if (result.affectedRows === 0) {
         await connection.rollback();
@@ -324,10 +361,7 @@ router.delete(
         });
       }
 
-      // -------------------------------------------------
       // COMMIT
-      // -------------------------------------------------
-
       await connection.commit();
 
       console.log(
@@ -342,24 +376,16 @@ router.delete(
       });
 
     } catch (err) {
-      console.error(
-        "DELETE CHAT ERROR:",
-        err
-      );
+      console.error("DELETE CHAT ERROR:", err);
 
       if (connection) {
         try {
           await connection.rollback();
         } catch (rollbackError) {
-          console.error(
-            "ROLLBACK ERROR:",
-            rollbackError
-          );
+          console.error("ROLLBACK ERROR:", rollbackError);
         }
       }
 
-      // Do not expose internal database error details
-      // to the client in production.
       res.status(500).json({
         success: false,
         message: "Failed to delete chat",

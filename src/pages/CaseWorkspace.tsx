@@ -383,7 +383,7 @@ export default function CaseWorkspace() {
       title: 'Case Conversations',
       description:
         'Continue discussions related to this case.',
-      path: '/dashboard/ai-assistant',
+      path: `/dashboard/ai-assistant?caseId=${caseItem.id}`,
     },
     {
       icon: StickyNote,
