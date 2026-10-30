@@ -86,6 +86,7 @@ minute: '2-digit'
 },
 ])
 const [input, setInput] = useState('')
+const [researchMode, setResearchMode] = useState<'standard' | 'deep'>('standard')
 const [loading, setLoading] = useState(false)
 const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null)
 const [agentStep, setAgentStep] = useState("")
@@ -409,7 +410,7 @@ try {
   const requestBody = new FormData()
   requestBody.append("case", messageText)
   requestBody.append("useResearchAgent", "true")
-  requestBody.append("researchMode", "standard")
+  requestBody.append("researchMode", researchMode)
   requestBody.append("history", JSON.stringify(messages.slice(-6).map(message => ({
     role: message.role === "user" ? "user" : "assistant",
     content: message.content.slice(0, 1200),
@@ -2627,6 +2628,44 @@ border: '1px solid var(--border)'
           'blur(20px)',
       }}
     >
+
+      {/* Research mode selector */}
+      <div
+        role="radiogroup"
+        aria-label="Research mode"
+        style={{
+          display: 'inline-flex',
+          marginBottom: 8,
+          padding: 2,
+          borderRadius: 8,
+          border: '1px solid rgba(194,118,53,0.4)',
+          background: 'var(--bg-secondary)',
+        }}
+      >
+        {([['standard', 'Standard'], ['deep', 'Deep Research']] as const).map(([mode, label]) => (
+          <button
+            key={mode}
+            type="button"
+            role="radio"
+            aria-checked={researchMode === mode}
+            disabled={loading}
+            onClick={() => setResearchMode(mode)}
+            title={mode === 'deep' ? 'Always search the live web and cite sources' : 'Searches the web only when needed'}
+            style={{
+              padding: '4px 12px',
+              borderRadius: 6,
+              border: 'none',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              cursor: loading ? 'default' : 'pointer',
+              background: researchMode === mode ? '#C27635' : 'transparent',
+              color: researchMode === mode ? '#fff' : 'var(--text-muted)',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div
         style={{
