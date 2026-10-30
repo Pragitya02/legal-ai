@@ -2684,10 +2684,8 @@ setDocumentsCount(
 
 
           <Link
-
-            to="/dashboard/booking"
-
-            className="btn-primary"
+  to="/dashboard/advocates"
+  className="btn-primary"
 
             style={{
 
