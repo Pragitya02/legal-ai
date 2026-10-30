@@ -209,18 +209,11 @@ export default function Booking() {
   // FEES
   // =====================================================
 
-  const consultationFee =
-    Number(advocate?.fee) > 0
-      ? Number(advocate.fee)
-      : 1500
+  const consultationFee = 0
 
-  const platformFee =
-    Math.round(
-      consultationFee * 0.05
-    )
+const platformFee = 0
 
-  const totalFee =
-    consultationFee + platformFee
+const totalFee = 0
 
   // =====================================================
   // CALENDAR
