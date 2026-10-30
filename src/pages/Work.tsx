@@ -43,7 +43,6 @@ const CITIZEN_TASKS = [
   { label: 'Draft an Application', prompt: 'Draft a formal application for ', icon: '📝' },
   { label: 'Write a Formal Letter', prompt: 'Write a formal letter to ', icon: '📬' },
   { label: 'Summarize a Document', prompt: 'Summarize the uploaded document', icon: '📚', upload: true },
-  { label: 'Create a Resume', prompt: 'Create a professional resume for ', icon: '👤', pdf: true },
   { label: 'Ask Anything', prompt: '', icon: '💬' },
 ]
 const ADVOCATE_TASKS = [
@@ -393,7 +392,7 @@ export default function Work() {
                 <div className="mx-auto max-w-3xl pt-6 text-center">
                   <h2 className="text-2xl font-semibold text-black">What would you like to work on?</h2>
                   <p className="mt-1 text-sm text-stone-900">Emails, letters, reports, PDFs, summaries and more.</p>
-                  <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {tasks.map((t) => (
                       <button
                         key={t.label}
