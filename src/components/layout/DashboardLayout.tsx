@@ -77,7 +77,7 @@ const citizenNav = [
   },
   {
     icon: BriefcaseBusiness,
-    label: 'Work',
+    label: 'Work Through',
     href: '/dashboard/work',
   },
   {
@@ -161,7 +161,7 @@ const advocateNav = [
   },
   {
     icon: BriefcaseBusiness,
-    label: 'Work',
+    label: 'Work Through',
     href: '/advocate/work',
   },
   {

@@ -378,21 +378,21 @@ export default function Work() {
             <Menu size={20} />
           </button>
           <BriefcaseBusiness size={18} style={{ color: BRONZE }} />
-          <h1 className="text-base font-semibold text-stone-800">Work</h1>
+          <h1 className="text-base font-semibold text-stone-800">Work Through</h1>
           <span className="hidden text-xs text-stone-400 sm:inline">General-purpose AI workspace</span>
         </header>
 
         <div className="flex min-h-0 flex-1">
           <div className="flex min-w-0 flex-1 flex-col">
-            <div className="flex-1 overflow-y-auto px-4 py-5">
+            <div className="flex-1 overflow-y-auto px-4 py-5" style={{ background: BRONZE }}>
               {loadingConv ? (
-                <div className="flex items-center justify-center gap-2 pt-16 text-sm text-stone-500">
+                <div className="flex items-center justify-center gap-2 pt-16 text-sm text-stone-900">
                   <Loader2 size={16} className="animate-spin" /> Loading conversation…
                 </div>
               ) : messages.length === 0 ? (
                 <div className="mx-auto max-w-3xl pt-6 text-center">
-                  <h2 className="text-2xl font-semibold text-stone-800">What would you like to work on?</h2>
-                  <p className="mt-1 text-sm text-stone-500">Emails, letters, reports, PDFs, summaries and more.</p>
+                  <h2 className="text-2xl font-semibold text-black">What would you like to work on?</h2>
+                  <p className="mt-1 text-sm text-stone-900">Emails, letters, reports, PDFs, summaries and more.</p>
                   <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                     {tasks.map((t) => (
                       <button
@@ -416,8 +416,8 @@ export default function Work() {
                         <div
                           className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm ${
                             m.role === 'user'
-                              ? 'text-white'
-                              : 'border border-stone-200 bg-white text-stone-800'
+                              ? 'border border-white/50 text-white'
+                              : 'border border-black bg-black text-white'
                           }`}
                           style={m.role === 'user' ? { background: BRONZE } : undefined}
                         >
@@ -429,11 +429,11 @@ export default function Work() {
                                 value={editing.text}
                                 onChange={(e) => setEditing({ id: m.id, text: e.target.value })}
                                 rows={12}
-                                className="w-full rounded-lg border border-stone-300 p-2 font-mono text-xs outline-none focus:border-[#C27635]"
+                                className="w-full rounded-lg border border-stone-300 bg-white p-2 font-mono text-stone-800 text-xs outline-none focus:border-[#C27635]"
                               />
                               <div className="flex gap-2">
                                 <button onClick={saveEdit} disabled={saving} className="rounded-md px-3 py-1 text-xs text-white disabled:opacity-50" style={{ background: BRONZE }}>{saving ? 'Saving…' : 'Save'}</button>
-                                <button onClick={() => setEditing(null)} className="rounded-md border border-stone-300 px-3 py-1 text-xs">Cancel</button>
+                                <button onClick={() => setEditing(null)} className="rounded-md border border-stone-300 px-3 py-1 text-xs text-white">Cancel</button>
                               </div>
                             </div>
                           ) : isDoc ? (
@@ -441,7 +441,7 @@ export default function Work() {
                               <FileText size={28} style={{ color: BRONZE }} />
                               <div className="min-w-0">
                                 <div className="truncate font-medium">{m.title || 'Document'}</div>
-                                <div className="text-xs text-stone-500">PDF document ready</div>
+                                <div className="text-xs text-stone-300">PDF document ready</div>
                               </div>
                             </div>
                           ) : (
@@ -449,7 +449,7 @@ export default function Work() {
                           )}
 
                           {m.role === 'assistant' && !(isEditing && !isDoc) && (
-                            <div className="mt-3 flex flex-wrap gap-2 border-t border-stone-100 pt-2 text-xs text-stone-500">
+                            <div className="mt-3 flex flex-wrap gap-2 border-t border-white/20 pt-2 text-xs text-stone-300">
                               {isDoc && (
                                 <>
                                   <button onClick={() => setPreview(m)} className="flex items-center gap-1 hover:text-[#C27635]"><FileText size={13} /> Preview</button>
@@ -470,7 +470,7 @@ export default function Work() {
                     )
                   })}
                   {busy && (
-                    <div className="flex items-center gap-2 text-sm text-stone-500">
+                    <div className="flex items-center gap-2 text-sm text-stone-900">
                       <Loader2 size={16} className="animate-spin" /> {pdfMode || wantsPdf(messages[messages.length - 1]?.content || '') ? 'Generating document…' : 'Thinking…'}
                     </div>
                   )}
