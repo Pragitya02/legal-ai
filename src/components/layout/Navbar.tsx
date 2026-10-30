@@ -110,15 +110,13 @@ export default function Navbar() {
                 fontFamily: 'Arial, Helvetica, sans-serif',
                 fontSize: '24px',
                 fontWeight: 900,
-                letterSpacing: '2px',
+                letterSpacing: '1px',
                 lineHeight: 1,
                 whiteSpace: 'nowrap',
                 textShadow: '0 0 12px rgba(194,118,53,0.18)',
               }}
             >
-              <span style={{ color: '#FFFFFF' }}>Nyaya</span>
-              {' '}
-              <span style={{ color: '#C27635' }}>AI</span>
+              <span style={{ color: '#FFFFFF' }}>Nyaya</span><span style={{ color: '#C27635' }}>AI</span>
             </span>
           </Link>
 
