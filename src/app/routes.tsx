@@ -49,6 +49,7 @@ import AdvocateConsultationRequests from '../pages/advocate/ConsultationRequests
 import AdvocateAvailability from '../pages/advocate/Availability'
 import AdvocateMeetings from '../pages/advocate/Meetings'
 import AIResearch from '../pages/AIResearch'
+import Work from '../pages/Work'
 import AdvocateEarnings from '../pages/advocate/Earnings'
 import AdvocateAnalytics from '../pages/advocate/Analytics'
 
@@ -124,6 +125,11 @@ export const router = createBrowserRouter([
       {
         path: 'ai-assistant',
         Component: AIAssistant,
+      },
+
+      {
+        path: 'work',
+        Component: Work,
       },
 
       {
@@ -240,6 +246,11 @@ export const router = createBrowserRouter([
       {
         path: 'ai-research',
         Component: AIResearch,
+      },
+
+      {
+        path: 'work',
+        Component: Work,
       },
 
       {

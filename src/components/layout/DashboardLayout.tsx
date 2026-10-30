@@ -25,6 +25,7 @@ import {
   FileSearch,
   MessageCircle,
   Briefcase,
+  BriefcaseBusiness,
   UserRound,
 } from 'lucide-react'
 
@@ -73,6 +74,11 @@ const citizenNav = [
     icon: MessageSquare,
     label: 'AI Assistant',
     href: '/dashboard/ai-assistant',
+  },
+  {
+    icon: BriefcaseBusiness,
+    label: 'Work',
+    href: '/dashboard/work',
   },
   {
     icon: FolderOpen,
@@ -152,6 +158,11 @@ const advocateNav = [
     icon: BookOpen,
     label: 'AI Research',
     href: '/advocate/ai-research',
+  },
+  {
+    icon: BriefcaseBusiness,
+    label: 'Work',
+    href: '/advocate/work',
   },
   {
     icon: FileText,

@@ -56,6 +56,7 @@ const { ensureRefreshTokenTable } = require("./database/refreshTokenModel");
 const { ensurePasswordResetTokenTable } = require("./database/passwordResetTokenModel");
 const { ensureActivityTable } = require("./database/activityModel");
 const { ensureCollaborationTables } = require("./database/collaborationModel");
+const { ensureWorkTables } = require("./database/workModel");
 
 const {
     ensureDocumentHashColumn,
@@ -132,6 +133,10 @@ ensureAuditLogsTable().catch((err) => {
     );
 });
 
+ensureWorkTables().catch((err) => {
+    console.error("Failed to ensure work tables:", err.message);
+});
+
 ensureActivityTable().catch((err) => {
     console.error("Failed to ensure user_activity table:", err.message);
 });
@@ -159,6 +164,7 @@ const availabilityRoutes = require("./routes/availabilityRoutes");
 const meetingRoutes = require("./routes/meetingRoutes");
 const signalingRoutes = require("./routes/signalingRoutes");
 const researchRoutes = require("./routes/researchRoutes");
+const workRoutes = require("./routes/workRoutes");
 const searchRoutes = require("./routes/searchRoutes");
 const agentRoutes = require("./routes/agentRoutes");
 
@@ -510,6 +516,15 @@ app.use(
 app.use(
     "/api/research",
     researchRoutes
+);
+
+// -----------------------------------------------------
+// Work (general-purpose AI workspace)
+// -----------------------------------------------------
+
+app.use(
+    "/api/work",
+    workRoutes
 );
 
 // -----------------------------------------------------
