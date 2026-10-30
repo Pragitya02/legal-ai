@@ -41,7 +41,7 @@ const CITIZEN_TASKS = [
   { label: 'Write an Email', prompt: 'Write a professional email to ', icon: '✉️' },
   { label: 'Create a PDF', prompt: 'Create a PDF report about ', icon: '📄', pdf: true },
   { label: 'Draft an Application', prompt: 'Draft a formal application for ', icon: '📝' },
-  { label: 'Write a Formal Letter', prompt: 'Write a formal letter to ', icon: '📬' },
+  { label: 'Write a RTI Apllication', prompt: 'Write a RTI Apllication to ', icon: '📬' },
   { label: 'Summarize a Document', prompt: 'Summarize the uploaded document', icon: '📚', upload: true },
   { label: 'Ask Anything', prompt: '', icon: '💬' },
 ]
