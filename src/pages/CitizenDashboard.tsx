@@ -2653,7 +2653,7 @@ setDocumentsCount(
 
             >
 
-              Upcoming Appointment
+              Find an Advocate
 
             </div>
 
@@ -2675,11 +2675,7 @@ setDocumentsCount(
 
             >
 
-              Your upcoming advocate
-
-              consultation will appear
-
-              here.
+             
 
             </div>
 
