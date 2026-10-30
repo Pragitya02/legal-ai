@@ -13,6 +13,76 @@ Send, Mic, Square, Paperclip, RotateCcw, Scale, FileText, Users,
 Clock, ChevronRight, Sparkles, MessageSquare, Plus, X, Volume2, Loader2,
 Download, Trash2,
 } from 'lucide-react'
+interface WebSource {
+  title: string
+  url: string
+  domain: string
+  snippet: string
+}
+// Keeps only real http(s) results the backend returned; nothing is invented.
+const parseWebSources = (data: unknown): WebSource[] => {
+  const raw = (data as { webSources?: unknown })?.webSources
+  if (!Array.isArray(raw)) return []
+  const out: WebSource[] = []
+  for (const item of raw) {
+    const r = (item ?? {}) as Record<string, unknown>
+    if (typeof r.url !== 'string') continue
+    try {
+      const u = new URL(r.url)
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') continue
+      out.push({
+        title: (typeof r.title === 'string' && r.title.trim()) || u.hostname,
+        url: u.href,
+        domain: u.hostname.replace(/^www\./, ''),
+        snippet: typeof r.snippet === 'string' ? r.snippet.slice(0, 300) : '',
+      })
+    } catch {
+      /* ignore malformed URL */
+    }
+  }
+  return out
+}
+function WebSourcesPanel({ sources }: { sources: WebSource[] }) {
+  if (sources.length === 0) return null
+  return (
+    <details
+      style={{
+        marginTop: 10,
+        border: '1px solid rgba(194,118,53,0.4)',
+        borderRadius: 10,
+        background: 'rgba(194,118,53,0.06)',
+        padding: '8px 12px',
+      }}
+    >
+      <summary style={{ cursor: 'pointer', color: '#C27635', fontSize: '0.8rem', fontWeight: 700 }}>
+        Web Research Sources ({sources.length})
+      </summary>
+      <ol style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'grid', gap: 10 }}>
+        {sources.map((src, i) => (
+          <li key={src.url} style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>
+            <div style={{ color: 'var(--text)', fontWeight: 600 }}>
+              {i + 1}. {src.title}
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>{src.domain}</div>
+            {src.snippet && <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>{src.snippet}</div>}
+            <a
+              href={src.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#C27635', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none' }}
+            >
+              Visit Website ↗
+            </a>
+          </li>
+        ))}
+      </ol>
+      <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginTop: 8 }}>
+        Retrieved from a live web search. Not independently verified.
+      </div>
+    </details>
+  )
+}
+
 interface Message {
 id: string
 role: 'user' | 'ai'
@@ -20,6 +90,8 @@ content: string
 timestamp: string
 // Citation metadata supplied by the backend for freshly generated answers.
 sources?: CitationMeta
+// Live web results returned by TinyFish (Deep Research only).
+webSources?: WebSource[]
 metadata?: {
 caseType?: string
 laws?: string[]
@@ -443,6 +515,7 @@ try {
     role: "ai",
     content: aiResponse,
     sources: parseCitationMeta(data),
+    webSources: researchMode === "deep" ? parseWebSources(data) : undefined,
     timestamp: new Date().toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -1756,6 +1829,10 @@ border: '1px solid var(--border)'
 
               {msg.role === 'ai' && (
                 <SourceStatus meta={msg.sources} />
+              )}
+
+              {msg.role === 'ai' && msg.webSources && (
+                <WebSourcesPanel sources={msg.webSources} />
               )}
 
               <div
