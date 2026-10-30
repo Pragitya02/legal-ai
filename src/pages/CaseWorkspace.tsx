@@ -11,7 +11,11 @@ import {
   Shield,
   Loader2,
   Save,
+  ExternalLink,
 } from 'lucide-react'
+
+const ECOURTS_URL =
+  'https://services.ecourts.gov.in/ecourtindia_v6/?p=home/index&app_token=0efc49ded200f5352188d59da33ab227b9172460805375fab9e94180d8c56baa'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001'
 
@@ -69,6 +73,27 @@ export default function CaseWorkspace() {
   const [notesSaving, setNotesSaving] = useState(false)
   const [notesError, setNotesError] = useState('')
   const [notesSaved, setNotesSaved] = useState(false)
+  const [cnr, setCnr] = useState('')
+  const [cnrError, setCnrError] = useState('')
+  const [cnrNotice, setCnrNotice] = useState<{ cnr: string; copied: boolean } | null>(null)
+
+  const trackCase = async () => {
+    const value = cnr.trim().toUpperCase()
+    if (!/^[A-Z0-9]{16}$/.test(value)) {
+      setCnrError('Please enter a valid 16-character CNR number.')
+      setCnrNotice(null)
+      return
+    }
+    setCnrError('')
+    let copied = true
+    try {
+      await navigator.clipboard.writeText(value)
+    } catch {
+      copied = false
+    }
+    window.open(ECOURTS_URL, '_blank', 'noopener,noreferrer')
+    setCnrNotice({ cnr: value, copied })
+  }
 
 
   const openNotes = async () => {
@@ -489,6 +514,86 @@ export default function CaseWorkspace() {
             >
               {caseItem.description}
             </p>
+
+            <div
+              style={{
+                marginTop: 16,
+                padding: 14,
+                maxWidth: 800,
+                border: '1px solid rgba(194,118,53,0.4)',
+                borderRadius: 12,
+                background: 'rgba(194,118,53,0.06)',
+              }}
+            >
+              <h2 style={{ color: 'var(--text)', fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>
+                Track Your Case
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', lineHeight: 1.5, margin: '4px 0 10px' }}>
+                Enter your 16-digit CNR number to track your case status on the official eCourts portal.
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  value={cnr}
+                  onChange={(e) => {
+                    setCnr(e.target.value.replace(/\s/g, '').slice(0, 16))
+                    setCnrError('')
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && trackCase()}
+                  maxLength={16}
+                  placeholder="16-digit CNR number"
+                  aria-label="CNR number"
+                  style={{
+                    flex: '1 1 200px',
+                    minWidth: 0,
+                    padding: '9px 12px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(194,118,53,0.4)',
+                    background: 'transparent',
+                    color: 'var(--text)',
+                    fontSize: '0.85rem',
+                    letterSpacing: '0.05em',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={trackCase}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '9px 14px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: '#C27635',
+                    color: '#fff',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Track Case on eCourts <ExternalLink size={14} />
+                </button>
+              </div>
+              {cnrError && (
+                <p role="alert" style={{ color: '#F87171', fontSize: '0.78rem', margin: '8px 0 0' }}>
+                  {cnrError}
+                </p>
+              )}
+              {cnrNotice && (
+                <p style={{ color: 'var(--text)', fontSize: '0.8rem', lineHeight: 1.5, margin: '8px 0 0' }}>
+                  {cnrNotice.copied
+                    ? 'Your CNR number has been copied. Paste it into the CNR search field on the eCourts portal.'
+                    : 'Could not copy automatically. Copy your CNR number below and paste it into the CNR search field on the eCourts portal:'}
+                  {!cnrNotice.copied && (
+                    <strong
+                      style={{ display: 'block', marginTop: 4, color: '#C27635', userSelect: 'all', letterSpacing: '0.05em' }}
+                    >
+                      {cnrNotice.cnr}
+                    </strong>
+                  )}
+                </p>
+              )}
+            </div>
           </div>
 
           <span
