@@ -41,6 +41,11 @@ export default function Navbar() {
     e: React.MouseEvent<HTMLAnchorElement>,
     href: string
   ) => {
+    // Close the mobile navigation whenever a navigation link is selected.
+    setMobileOpen(false)
+    setContactOpen(false)
+
+    // Find Advocates is the only protected navigation route.
     if (href !== '/dashboard/advocates') return
 
     e.preventDefault()
@@ -52,8 +57,6 @@ export default function Navbar() {
         state: { from: href },
       })
     }
-
-    setMobileOpen(false)
   }
 
   return (
