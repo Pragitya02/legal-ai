@@ -1734,7 +1734,7 @@ border: '1px solid var(--border)'
                         {areas.map(area => (
                           <Link
                             key={area}
-                            to={`/advocates?practiceArea=${encodeURIComponent(area)}`}
+                            to={`/dashboard/advocates?practiceArea=${encodeURIComponent(area)}`}
                             style={{
                               padding: '6px 12px',
                               borderRadius: 999,
