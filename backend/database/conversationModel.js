@@ -57,9 +57,49 @@ async function updateConversation(conversationId, userId, title) {
   return result.affectedRows > 0;
 }
 
+
+// Get an existing case conversation or create one
+async function getOrCreateCaseConversation(userId, caseId, title) {
+  const [existing] = await pool.execute(
+    `SELECT id FROM conversations
+     WHERE user_id = ? AND case_id = ?
+     LIMIT 1`,
+    [userId, caseId]
+  );
+
+  if (existing.length > 0) {
+    return existing[0].id;
+  }
+
+  try {
+    const [result] = await pool.execute(
+      `INSERT INTO conversations (user_id, title, case_id)
+       VALUES (?, ?, ?)`,
+      [userId, title || `Case #${caseId}`, caseId]
+    );
+
+    return result.insertId;
+  } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") {
+      const [rows] = await pool.execute(
+        `SELECT id FROM conversations
+         WHERE user_id = ? AND case_id = ?
+         LIMIT 1`,
+        [userId, caseId]
+      );
+
+      if (rows.length) return rows[0].id;
+    }
+
+    throw error;
+  }
+}
+
+
 module.exports = {
   createConversation,
   getConversations,
   getConversation,
   updateConversation,
+  getOrCreateCaseConversation,
 };
