@@ -317,7 +317,7 @@ export default function Work() {
   }, [preview?.id, preview?.content, preview?.title]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const sidebarEl = (
-    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-stone-200 bg-white">
+    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-[#51402F] bg-[#1B1816]">
       <div className="space-y-3 p-3">
         <button
           onClick={newChat}
@@ -327,22 +327,22 @@ export default function Work() {
           <Plus size={16} /> New Chat
         </button>
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B9AEA3]" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search conversations"
-            className="w-full rounded-lg border border-stone-200 py-2 pl-8 pr-3 text-sm outline-none focus:border-[#C27635]"
+            className="w-full rounded-lg border border-[#51402F] bg-[#211D19] py-2 pl-8 pr-3 text-sm text-[#F5F1EB] placeholder:text-[#B9AEA3] outline-none focus:border-[#C27635]"
           />
         </div>
       </div>
       <div className="flex-1 space-y-1 overflow-y-auto px-2 pb-3">
-        {convs.length === 0 && <p className="px-3 py-6 text-center text-xs text-stone-400">No conversations yet</p>}
+        {convs.length === 0 && <p className="px-3 py-6 text-center text-xs text-[#B9AEA3]">No conversations yet</p>}
         {convs.map((c) => (
           <div
             key={c.id}
             className={`group flex items-center gap-1 rounded-lg px-3 py-2 text-sm ${
-              c.id === activeId ? 'bg-[#C27635]/10 text-[#8a4f1f]' : 'text-stone-700 hover:bg-stone-100'
+              c.id === activeId ? 'bg-[#C27635]/15 text-[#F5F1EB] ring-1 ring-[#C27635]/40' : 'text-[#B9AEA3] hover:bg-[#30251C] hover:text-[#F5F1EB]'
             }`}
           >
             <button onClick={() => openConv(c.id)} className="min-w-0 flex-1 truncate text-left">
@@ -351,7 +351,7 @@ export default function Work() {
             <button
               onClick={() => removeConv(c.id)}
               aria-label="Delete conversation"
-              className="text-stone-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
+              className="text-[#B9AEA3] opacity-0 hover:text-red-400 group-hover:opacity-100"
             >
               <Trash2 size={14} />
             </button>
@@ -362,7 +362,7 @@ export default function Work() {
   )
 
   return (
-    <div className="relative flex h-[calc(100dvh-13rem)] min-h-[480px] overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
+    <div className="relative flex h-[calc(100dvh-13rem)] min-h-[480px] overflow-hidden rounded-xl border border-[#51402F] bg-[#151311]">
       <div className="hidden md:block">{sidebarEl}</div>
       {sidebar && (
         <div className="absolute inset-0 z-30 flex md:hidden">
@@ -372,35 +372,38 @@ export default function Work() {
       )}
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-2 border-b border-stone-200 bg-white px-4 py-3">
-          <button className="md:hidden" onClick={() => setSidebar(true)} aria-label="Conversations">
+        <header className="flex items-center gap-2 border-b border-[#51402F] bg-[#1B1816]/90 px-4 py-3 backdrop-blur-sm">
+          <button className="text-[#F5F1EB] md:hidden" onClick={() => setSidebar(true)} aria-label="Conversations">
             <Menu size={20} />
           </button>
           <BriefcaseBusiness size={18} style={{ color: BRONZE }} />
-          <h1 className="text-base font-semibold text-stone-800">Work Through</h1>
-          <span className="hidden text-xs text-stone-400 sm:inline">General-purpose AI workspace</span>
+          <h1 className="text-base font-semibold text-[#F5F1EB]">Work Through</h1>
+          <span className="hidden text-xs text-[#B9AEA3] sm:inline">General-purpose AI workspace</span>
         </header>
 
         <div className="flex min-h-0 flex-1">
           <div className="flex min-w-0 flex-1 flex-col">
-            <div className="flex-1 overflow-y-auto px-4 py-5" style={{ background: BRONZE }}>
+            <div
+              className="flex-1 overflow-y-auto px-4 py-5"
+              style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(194,118,53,0.10) 0%, rgba(194,118,53,0) 55%), #151311' }}
+            >
               {loadingConv ? (
-                <div className="flex items-center justify-center gap-2 pt-16 text-sm text-stone-900">
+                <div className="flex items-center justify-center gap-2 pt-16 text-sm text-[#B9AEA3]">
                   <Loader2 size={16} className="animate-spin" /> Loading conversation…
                 </div>
               ) : messages.length === 0 ? (
                 <div className="mx-auto max-w-3xl pt-6 text-center">
-                  <h2 className="text-2xl font-semibold text-black">What would you like to work on?</h2>
-                  <p className="mt-1 text-sm text-stone-900">Emails, letters, reports, PDFs, summaries and more.</p>
+                  <h2 className="text-2xl font-semibold text-[#F5F1EB]">What would you like to work on?</h2>
+                  <p className="mt-1 text-sm text-[#B9AEA3]">Emails, letters, reports, PDFs, summaries and more.</p>
                   <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {tasks.map((t) => (
                       <button
                         key={t.label}
                         onClick={() => pickTask(t)}
-                        className="rounded-xl border border-stone-200 bg-white p-4 text-left transition hover:border-[#C27635] hover:shadow-sm"
+                        className="rounded-xl border border-[#51402F] bg-[#211D19]/90 p-4 text-left shadow-[inset_0_1px_0_rgba(245,241,235,0.04)] backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#C27635]/70 hover:bg-[#30251C] hover:shadow-[0_0_0_1px_rgba(194,118,53,0.25),0_8px_24px_-8px_rgba(194,118,53,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C27635]/60"
                       >
                         <div className="text-xl">{t.icon}</div>
-                        <div className="mt-2 text-sm font-medium text-stone-800">{t.label}</div>
+                        <div className="mt-2 text-sm font-medium text-[#F5F1EB]">{t.label}</div>
                       </button>
                     ))}
                   </div>
@@ -415,8 +418,8 @@ export default function Work() {
                         <div
                           className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm ${
                             m.role === 'user'
-                              ? 'border border-white/50 text-white'
-                              : 'border border-black bg-black text-white'
+                              ? 'border border-[#C27635]/60 text-white shadow-sm'
+                              : 'border border-[#51402F] bg-[#211D19] text-[#F5F1EB]'
                           }`}
                           style={m.role === 'user' ? { background: BRONZE } : undefined}
                         >
@@ -469,7 +472,7 @@ export default function Work() {
                     )
                   })}
                   {busy && (
-                    <div className="flex items-center gap-2 text-sm text-stone-900">
+                    <div className="flex items-center gap-2 text-sm text-[#B9AEA3]">
                       <Loader2 size={16} className="animate-spin" /> {pdfMode || wantsPdf(messages[messages.length - 1]?.content || '') ? 'Generating document…' : 'Thinking…'}
                     </div>
                   )}
@@ -478,7 +481,7 @@ export default function Work() {
               )}
             </div>
 
-            <div className="border-t border-stone-200 bg-white p-3">
+            <div className="border-t border-[#51402F] bg-[#1B1816] p-3">
               <div className="mx-auto max-w-3xl">
                 {error && (
                   <div className="mb-2 flex items-center justify-between rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -489,22 +492,22 @@ export default function Work() {
                 {docs.length > 0 && (
                   <div className="mb-2 flex flex-wrap gap-2">
                     {docs.map((d) => (
-                      <span key={d.id} className="flex items-center gap-1 rounded-full bg-[#C27635]/10 px-3 py-1 text-xs text-[#8a4f1f]">
+                      <span key={d.id} className="flex items-center gap-1 rounded-full border border-[#C27635]/40 bg-[#C27635]/15 px-3 py-1 text-xs text-[#F5F1EB]">
                         <FileText size={12} /> {d.file_name}
                       </span>
                     ))}
                   </div>
                 )}
-                <div className="flex items-end gap-2 rounded-xl border border-stone-300 bg-white p-2 focus-within:border-[#C27635]">
+                <div className="flex items-end gap-2 rounded-xl border border-[#51402F] bg-[#211D19] p-2 text-[#F5F1EB] focus-within:border-[#C27635] focus-within:shadow-[0_0_0_3px_rgba(194,118,53,0.15)]">
                   <input ref={fileRef} type="file" hidden accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp" onChange={(e) => upload(e.target.files?.[0])} />
-                  <button onClick={() => fileRef.current?.click()} disabled={uploading} aria-label="Upload document" className="p-2 text-stone-500 hover:text-[#C27635]">
+                  <button onClick={() => fileRef.current?.click()} disabled={uploading} aria-label="Upload document" className="p-2 text-[#B9AEA3] hover:text-[#C27635]">
                     {uploading ? <Loader2 size={18} className="animate-spin" /> : <Paperclip size={18} />}
                   </button>
                   <button
                     onClick={() => setPdfMode((v) => !v)}
                     aria-pressed={pdfMode}
                     title="Generate as PDF document"
-                    className={`rounded-md px-2 py-1 text-xs font-medium ${pdfMode ? 'text-white' : 'border border-stone-300 text-stone-500'}`}
+                    className={`rounded-md px-2 py-1 text-xs font-medium ${pdfMode ? 'text-white' : 'border border-[#51402F] text-[#B9AEA3] hover:bg-[#30251C]'}`}
                     style={pdfMode ? { background: BRONZE } : undefined}
                   >
                     PDF
@@ -521,7 +524,7 @@ export default function Work() {
                     }}
                     rows={1}
                     placeholder={pdfMode ? 'Describe the PDF document to create…' : 'Ask anything, draft an email, summarize a document…'}
-                    className="max-h-40 min-h-[36px] flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none"
+                    className="max-h-40 min-h-[36px] flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-[#F5F1EB] placeholder:text-[#B9AEA3] outline-none"
                   />
                   <button
                     onClick={() => send()}
